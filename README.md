@@ -7,7 +7,7 @@ Application mobile de matching entre joueurs de padel et de réservation de terr
 | [docs/](docs/README.md) | Cahier des charges, architecture, business model, APIs, roadmap |
 | [backend/](backend/) | API NestJS + PostgreSQL (PostGIS) + Redis — **MVP backend complet** |
 | [admin-web/](admin-web/) | Dashboard admin **Next.js** — login, KPIs, validation clubs, utilisateurs, modération, audit |
-| `mobile/` | App Flutter (à venir) |
+| [mobile/](mobile/) | App **Flutter** (Riverpod, go_router, dio) — auth, recherche de clubs, réservation, mes résas |
 
 ## Démarrage rapide (backend)
 
@@ -32,7 +32,7 @@ npm run start:dev             # API sur http://localhost:3000/v1
 | S11-S12 | Chat WebSocket (`/chat`), notifications + rappels H-2, device tokens FCM | ✅ Backend |
 | S13-S14 | Espace club (calendrier, résa manuelle, blocage, check-in QR) + admin (KPIs, validation, modération, audit) | ✅ Backend |
 | — | Dashboard admin Next.js (login, KPIs, clubs, utilisateurs, signalements, audit) | ✅ Web |
-| — | App mobile Flutter | ⬜ À faire |
+| — | App mobile Flutter (auth, clubs, créneaux, réservation, mes résas + QR) | ✅ Mobile |
 | — | Prod : vrai fournisseur SMS, firebase-admin (push), upload S3, Sentry, tests charge k6 | ⬜ À faire |
 
 ## Démarrage du dashboard admin
@@ -45,6 +45,21 @@ npm run dev                    # dashboard sur http://localhost:3002
 ```
 
 > Connexion avec un compte dont le rôle inclut `ADMIN` (les autres comptes sont refusés).
+
+## Démarrage de l'app mobile (Flutter)
+
+```bash
+cd mobile
+flutter pub get
+flutter run                    # émulateur Android : API sur 10.0.2.2:3001
+# ou cibler une autre API :
+flutter run --dart-define=API_URL=http://10.0.2.2:3001/v1
+```
+
+Architecture (docs/02) : **Riverpod** (état), **go_router** (navigation + garde d'auth),
+**dio** (HTTP avec intercepteur JWT + refresh automatique), **flutter_secure_storage**
+(tokens). Écrans : onboarding/connexion, inscription, connexion par SMS (OTP),
+liste des clubs, fiche club + créneaux, tunnel de réservation, mes réservations (avec QR).
 
 ## Aperçu de l'API (préfixe `/v1`)
 
