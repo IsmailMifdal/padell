@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: padel-db
+    environment:
+      POSTGRES_USER: padel
+      POSTGRES_PASSWORD: padel_dev_password
+      POSTGRES_DB: padel
+    ports:
+      - "5433:5432"
+    volumes:
+      - padel_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U padel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: padel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - padel_redisdata:/data
+
+volumes:
+  padel_pgdata:
+  padel_redisdata:

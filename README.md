@@ -1,1 +1,49 @@
-# padell
+# 🎾 Padel App — Matching & Réservation (Maroc)
+
+Application mobile de matching entre joueurs de padel et de réservation de terrains.
+
+| Dossier | Contenu |
+|---|---|
+| [docs/](docs/README.md) | Cahier des charges, architecture, business model, APIs, roadmap |
+| [backend/](backend/) | API NestJS + PostgreSQL (PostGIS) + Redis — **MVP backend complet** |
+| `mobile/` | App Flutter (à venir) |
+| `admin-web/` | Dashboard admin Next.js (à venir — les endpoints `/admin/*` sont prêts) |
+
+## Démarrage rapide (backend)
+
+```bash
+cd backend
+npm install
+cp .env.example .env          # adapter les secrets
+docker compose up -d          # PostgreSQL (PostGIS) + Redis
+npx prisma migrate deploy     # crée les tables
+npm run start:dev             # API sur http://localhost:3000/v1
+```
+
+## État d'avancement (roadmap MVP — docs/05)
+
+| Sprint | Périmètre | État |
+|---|---|---|
+| S1-S2 | Auth (JWT, OTP SMS, Google/Apple, refresh rotatif, RBAC), profils, CI | ✅ Backend |
+| S3-S4 | Clubs, terrains, tarifs, horaires, recherche géo PostGIS, dispos joueur | ✅ Backend |
+| S5-S6 | Disponibilités à la volée, réservations (verrou Redis + contrainte `EXCLUDE`), annulation | ✅ Backend |
+| S7-S8 | Paiement CMI (formulaire signé + webhook idempotent), sur place, QR, remboursements, payouts | ✅ Backend |
+| S9-S10 | Matchs ouverts, rejoindre/accepter, paiement partagé, désistements, annulation auto H-2 | ✅ Backend |
+| S11-S12 | Chat WebSocket (`/chat`), notifications + rappels H-2, device tokens FCM | ✅ Backend |
+| S13-S14 | Espace club (calendrier, résa manuelle, blocage, check-in QR) + admin (KPIs, validation, modération, audit) | ✅ Backend |
+| — | App mobile Flutter, dashboard admin Next.js | ⬜ À faire |
+| — | Prod : vrai fournisseur SMS, firebase-admin (push), upload S3, Sentry, tests charge k6 | ⬜ À faire |
+
+## Aperçu de l'API (préfixe `/v1`)
+
+- `POST /auth/register · login · otp/send · otp/verify · social · password/reset · refresh · logout`
+- `GET/PATCH/DELETE /users/me` · `PUT /users/me/availabilities`
+- `GET /clubs?lat&lng&radiusKm` · `GET /clubs/:id` · `GET /clubs/:id/availability?date=`
+- `POST /clubs` + terrains, horaires, tarifs (propriétaire)
+- `POST /bookings` · `GET /bookings/mine` · `POST /bookings/:id/cancel`
+- `POST /payments/bookings/:id/session` · `POST /payments/matches/:id/session` · `POST /payments/cmi/callback` (webhook)
+- `POST /matches` · `GET /matches` · `join / accept / decline / withdraw / cancel` · `GET /matches/:id/messages`
+- WebSocket `io('/chat', { auth: { token } })` : `join { matchId }`, `message { matchId, body }`
+- `GET /notifications` · `PUT /notifications/device`
+- `/owner/clubs/:id/*` : calendar, bookings/manual, bookings/block, checkin, payouts
+- `/admin/*` : kpis, clubs (approve/reject/suspend), users, reports, audit-log

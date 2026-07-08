@@ -1,0 +1,496 @@
+// Schéma Prisma — Sprint 1 : authentification & profils joueurs
+// Le schéma complet (clubs, bookings, matches...) est documenté dans
+// docs/02-architecture-technique.md et sera ajouté par migrations aux sprints suivants.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  OWNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum Handedness {
+  RIGHT
+  LEFT
+}
+
+enum CourtPosition {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum OtpPurpose {
+  REGISTER
+  LOGIN
+  RESET_PASSWORD
+}
+
+model User {
+  id                  String         @id @default(uuid())
+  email               String?        @unique
+  phone               String?        @unique
+  passwordHash        String?        @map("password_hash")
+  googleId            String?        @unique @map("google_id")
+  appleId             String?        @unique @map("apple_id")
+  roles               Role[]         @default([PLAYER])
+  status              UserStatus     @default(ACTIVE)
+  failedLoginAttempts Int            @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?      @map("locked_until")
+  lastLoginAt         DateTime?      @map("last_login_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  profile             PlayerProfile?
+  refreshTokens       RefreshToken[]
+  clubs               Club[]
+  bookings            Booking[]
+  payments            Payment[]
+  createdMatches      Match[]        @relation("createdMatches")
+  matchPlayers        MatchPlayer[]
+  chatMessages        ChatMessage[]
+  notifications       Notification[]
+  deviceTokens        DeviceToken[]
+  reportsMade         Report[]        @relation("reportsMade")
+  reportsHandled      Report[]        @relation("reportsHandled")
+  adminAuditLogs      AdminAuditLog[]
+
+  @@map("users")
+}
+
+model PlayerProfile {
+  userId        String         @id @map("user_id")
+  firstName     String         @map("first_name")
+  lastName      String         @map("last_name")
+  avatarUrl     String?        @map("avatar_url")
+  city          String?
+  gender        Gender?
+  birthdate     DateTime?      @db.Date
+  handedness    Handedness?
+  courtPosition CourtPosition? @map("court_position")
+  // Niveau padel 1.0 - 7.0 (auto-évalué au départ, calculé ensuite)
+  level         Decimal        @default(2.0) @db.Decimal(2, 1)
+  eloRating     Int            @default(1000) @map("elo_rating")
+  matchesPlayed Int            @default(0) @map("matches_played")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilities Availability[]
+
+  @@map("player_profiles")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  deviceInfo String?   @map("device_info")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ------------------------------------------------------------------ Sprint 3-4
+
+enum ClubStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum CourtType {
+  INDOOR
+  OUTDOOR
+  PANORAMIC
+}
+
+model Club {
+  id                   String        @id @default(uuid())
+  ownerId              String        @map("owner_id")
+  name                 String
+  description          String?
+  address              String
+  city                 String
+  phone                String?
+  // Coordonnées : la recherche géo utilise un index GIST fonctionnel PostGIS
+  // sur ST_MakePoint(longitude, latitude) — voir la migration.
+  latitude             Decimal       @db.Decimal(9, 6)
+  longitude            Decimal       @db.Decimal(9, 6)
+  amenities            Json          @default("[]")
+  cancellationPolicy   Json?         @map("cancellation_policy")
+  commissionRate       Decimal       @default(10.00) @map("commission_rate") @db.Decimal(4, 2)
+  paymentOnSiteAllowed Boolean       @default(true) @map("payment_on_site_allowed")
+  status               ClubStatus    @default(PENDING)
+  ratingAvg            Decimal?      @map("rating_avg") @db.Decimal(2, 1)
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  owner                User          @relation(fields: [ownerId], references: [id])
+  courts               Court[]
+  openingHours         OpeningHour[]
+  payouts              Payout[]
+  matches              Match[]
+
+  @@index([ownerId])
+  @@index([status, city])
+  @@map("clubs")
+}
+
+model Court {
+  id           String        @id @default(uuid())
+  clubId       String        @map("club_id")
+  name         String
+  type         CourtType     @default(OUTDOOR)
+  photos       Json          @default("[]")
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  club         Club          @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  pricingRules PricingRule[]
+  bookings     Booking[]
+
+  @@index([clubId])
+  @@map("courts")
+}
+
+// Horaires d'ouverture du club. dayOfWeek : ISO 1 (lundi) à 7 (dimanche).
+// Heures en minutes depuis minuit (ex : 540 = 09:00) pour simplifier
+// le calcul des disponibilités.
+model OpeningHour {
+  id        String @id @default(uuid())
+  clubId    String @map("club_id")
+  dayOfWeek Int    @map("day_of_week")
+  openMin   Int    @map("open_min")
+  closeMin  Int    @map("close_min")
+  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, dayOfWeek])
+  @@map("opening_hours")
+}
+
+// Règle tarifaire d'un terrain : prix pour une durée donnée sur une plage
+// horaire d'un jour de semaine. Les créneaux réservables sont dérivés de
+// ces règles (pas de table de créneaux pré-générés).
+model PricingRule {
+  id          String  @id @default(uuid())
+  courtId     String  @map("court_id")
+  dayOfWeek   Int     @map("day_of_week")
+  startMin    Int     @map("start_min")
+  endMin      Int     @map("end_min")
+  durationMin Int     @map("duration_min")
+  priceMad    Decimal @map("price_mad") @db.Decimal(8, 2)
+  court       Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([courtId, dayOfWeek])
+  @@map("pricing_rules")
+}
+
+// Disponibilités déclarées d'un joueur (pour les suggestions de matchs)
+model Availability {
+  id        String        @id @default(uuid())
+  playerId  String        @map("player_id")
+  dayOfWeek Int           @map("day_of_week")
+  startMin  Int           @map("start_min")
+  endMin    Int           @map("end_min")
+  profile   PlayerProfile @relation(fields: [playerId], references: [userId], onDelete: Cascade)
+
+  @@index([playerId])
+  @@map("availabilities")
+}
+
+// ------------------------------------------------------------------ Sprint 5-6
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum BookingSource {
+  APP
+  MANUAL
+  BLOCKED
+}
+
+enum PaymentMode {
+  ONLINE
+  ON_SITE
+}
+
+// ⚠ Contrainte anti-double-réservation ajoutée en SQL brut dans la migration :
+// EXCLUDE USING gist (court_id WITH =, tstzrange(starts_at, ends_at) WITH &&)
+// WHERE (status IN ('PENDING_PAYMENT','CONFIRMED'))
+model Booking {
+  id                 String        @id @default(uuid())
+  courtId            String        @map("court_id")
+  bookedById         String?       @map("booked_by")
+  startsAt           DateTime      @map("starts_at")
+  endsAt             DateTime      @map("ends_at")
+  priceMad           Decimal       @map("price_mad") @db.Decimal(8, 2)
+  status             BookingStatus @default(PENDING_PAYMENT)
+  source             BookingSource @default(APP)
+  paymentMode        PaymentMode?  @map("payment_mode")
+  qrCode             String?       @unique @map("qr_code")
+  cancellationReason String?       @map("cancellation_reason")
+  // Note interne club : nom du client (résa manuelle) ou motif de blocage
+  note               String?
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  court              Court         @relation(fields: [courtId], references: [id])
+  bookedBy           User?         @relation(fields: [bookedById], references: [id])
+  payments           Payment[]
+  match              Match?
+
+  @@index([courtId, startsAt])
+  @@index([bookedById, startsAt])
+  @@index([status, createdAt])
+  @@map("bookings")
+}
+
+// ------------------------------------------------------------------ Sprint 7-8
+
+enum PaymentMethod {
+  CMI
+  ON_SITE
+}
+
+enum PaymentStatus {
+  INITIATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  bookingId        String?       @map("booking_id")
+  matchId          String?       @map("match_id")
+  amountMad        Decimal       @map("amount_mad") @db.Decimal(8, 2)
+  commissionMad    Decimal       @default(0) @map("commission_mad") @db.Decimal(8, 2)
+  method           PaymentMethod
+  cmiOrderId       String?       @unique @map("cmi_order_id")
+  cmiTransactionId String?       @map("cmi_transaction_id")
+  status           PaymentStatus @default(INITIATED)
+  refundAmountMad  Decimal?      @map("refund_amount_mad") @db.Decimal(8, 2)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  user             User          @relation(fields: [userId], references: [id])
+  booking          Booking?      @relation(fields: [bookingId], references: [id])
+  matchPlayer      MatchPlayer?
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([matchId])
+  @@map("payments")
+}
+
+model Payout {
+  id            String       @id @default(uuid())
+  clubId        String       @map("club_id")
+  periodStart   DateTime     @map("period_start") @db.Date
+  periodEnd     DateTime     @map("period_end") @db.Date
+  grossMad      Decimal      @map("gross_mad") @db.Decimal(10, 2)
+  commissionMad Decimal      @map("commission_mad") @db.Decimal(10, 2)
+  netMad        Decimal      @map("net_mad") @db.Decimal(10, 2)
+  status        PayoutStatus @default(PENDING)
+  paidAt        DateTime?    @map("paid_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  club          Club         @relation(fields: [clubId], references: [id])
+
+  @@unique([clubId, periodStart, periodEnd])
+  @@map("payouts")
+}
+
+// ----------------------------------------------------------------- Sprint 9-10
+
+enum MatchStatus {
+  OPEN
+  FULL
+  CONFIRMED
+  PLAYED
+  CANCELLED
+}
+
+enum MatchVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum MatchPlayerStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model Match {
+  id                 String          @id @default(uuid())
+  creatorId          String          @map("creator_id")
+  bookingId          String?         @unique @map("booking_id")
+  clubId             String          @map("club_id")
+  startsAt           DateTime        @map("starts_at")
+  durationMin        Int             @map("duration_min")
+  levelMin           Decimal         @map("level_min") @db.Decimal(2, 1)
+  levelMax           Decimal         @map("level_max") @db.Decimal(2, 1)
+  visibility         MatchVisibility @default(PUBLIC)
+  pricePerPlayerMad  Decimal         @map("price_per_player_mad") @db.Decimal(8, 2)
+  status             MatchStatus     @default(OPEN)
+  score              Json?
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  creator            User            @relation("createdMatches", fields: [creatorId], references: [id])
+  booking            Booking?        @relation(fields: [bookingId], references: [id])
+  club               Club            @relation(fields: [clubId], references: [id])
+  players            MatchPlayer[]
+  chatMessages       ChatMessage[]
+
+  @@index([status, startsAt])
+  @@index([clubId, startsAt])
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id        String            @id @default(uuid())
+  matchId   String            @map("match_id")
+  playerId  String            @map("player_id")
+  team      Int?
+  status    MatchPlayerStatus @default(REQUESTED)
+  paymentId String?           @unique @map("payment_id")
+  joinedAt  DateTime          @default(now()) @map("joined_at")
+  match     Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    User              @relation(fields: [playerId], references: [id])
+  payment   Payment?          @relation(fields: [paymentId], references: [id])
+
+  @@unique([matchId, playerId])
+  @@map("match_players")
+}
+
+// ---------------------------------------------------------------- Sprint 11-12
+
+model ChatMessage {
+  id       String   @id @default(uuid())
+  matchId  String   @map("match_id")
+  senderId String   @map("sender_id")
+  body     String
+  sentAt   DateTime @default(now()) @map("sent_at")
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender   User     @relation(fields: [senderId], references: [id])
+
+  @@index([matchId, sentAt])
+  @@map("chat_messages")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  body      String
+  data      Json      @default("{}")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String? // ios | android
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// ---------------------------------------------------------------- Sprint 13-14
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportTargetType {
+  USER
+  CLUB
+}
+
+model Report {
+  id          String           @id @default(uuid())
+  reporterId  String           @map("reporter_id")
+  targetType  ReportTargetType @map("target_type")
+  targetId    String           @map("target_id")
+  reason      String
+  status      ReportStatus     @default(OPEN)
+  handledById String?          @map("handled_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  reporter    User             @relation("reportsMade", fields: [reporterId], references: [id])
+  handledBy   User?            @relation("reportsHandled", fields: [handledById], references: [id])
+
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String   @map("admin_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  admin      User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt])
+  @@map("admin_audit_log")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid())
+  phone      String
+  codeHash   String     @map("code_hash")
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([phone, purpose])
+  @@map("otp_codes")
+}
