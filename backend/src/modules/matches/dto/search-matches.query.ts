@@ -1,6 +1,9 @@
 import { Type } from 'class-transformer';
 import {
   IsInt,
+  IsLatitude,
+  IsLongitude,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -14,6 +17,25 @@ export class SearchMatchesQuery {
   @IsString()
   @MaxLength(80)
   city?: string;
+
+  // Recherche par géolocalisation : matchs dans les clubs autour de (lat,lng)
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsLongitude()
+  lng?: number;
+
+  /** Rayon en km (défaut 25) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.5)
+  @Max(100)
+  radiusKm?: number;
 
   /** Jour au format YYYY-MM-DD */
   @IsOptional()

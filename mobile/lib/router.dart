@@ -8,6 +8,8 @@ import 'features/auth/otp_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/booking/club_detail_screen.dart';
 import 'features/booking/home_screen.dart';
+import 'features/matching/create_match_screen.dart';
+import 'features/matching/match_detail_screen.dart';
 import 'shared/models.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -44,6 +46,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           final club = state.extra as Club;
           return ClubDetailScreen(club: club);
         },
+      ),
+      // '/matches/create' avant '/matches/:id' pour éviter la capture
+      GoRoute(
+        path: '/matches/create',
+        builder: (_, __) => const CreateMatchScreen(),
+      ),
+      GoRoute(
+        path: '/matches/:id',
+        builder: (context, state) =>
+            MatchDetailScreen(matchId: state.pathParameters['id']!),
       ),
     ],
   );

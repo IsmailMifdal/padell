@@ -21,6 +21,8 @@ dependencies:
   intl: ^0.19.0
   # Typographie premium
   google_fonts: ^6.2.1
+  # Géolocalisation (matchs autour du joueur)
+  geolocator: ^13.0.1
 
 dev_dependencies:
   flutter_test:

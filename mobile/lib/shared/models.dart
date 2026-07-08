@@ -102,6 +102,101 @@ class Slot {
       );
 }
 
+class MatchParticipant {
+  MatchParticipant({
+    required this.playerId,
+    required this.firstName,
+    required this.lastName,
+    required this.status,
+    this.level,
+  });
+
+  final String playerId;
+  final String firstName;
+  final String lastName;
+  final String status; // REQUESTED | ACCEPTED | ...
+  final double? level;
+
+  String get fullName => '$firstName $lastName';
+  String get initial => firstName.isEmpty ? '?' : firstName[0].toUpperCase();
+
+  factory MatchParticipant.fromJson(Map<String, dynamic> j) {
+    final player = (j['player'] ?? {}) as Map<String, dynamic>;
+    final profile = (player['profile'] ?? {}) as Map<String, dynamic>;
+    return MatchParticipant(
+      playerId: player['id'] as String,
+      firstName: (profile['firstName'] ?? '') as String,
+      lastName: (profile['lastName'] ?? '') as String,
+      status: (j['status'] ?? 'ACCEPTED') as String,
+      level: profile['level'] == null
+          ? null
+          : double.tryParse(profile['level'].toString()),
+    );
+  }
+}
+
+class PadelMatch {
+  PadelMatch({
+    required this.id,
+    required this.clubName,
+    required this.city,
+    required this.startsAt,
+    required this.durationMin,
+    required this.levelMin,
+    required this.levelMax,
+    required this.pricePerPlayerMad,
+    required this.status,
+    required this.acceptedCount,
+    this.creatorId,
+    this.distanceM,
+    this.players = const [],
+  });
+
+  final String id;
+  final String clubName;
+  final String city;
+  final DateTime startsAt;
+  final int durationMin;
+  final double levelMin;
+  final double levelMax;
+  final double pricePerPlayerMad;
+  final String status;
+  final int acceptedCount;
+  final String? creatorId;
+  final double? distanceM;
+  final List<MatchParticipant> players;
+
+  static const size = 4;
+  int get spotsLeft => (size - acceptedCount).clamp(0, size);
+
+  static double _d(dynamic v) => double.tryParse(v.toString()) ?? 0;
+
+  factory PadelMatch.fromJson(Map<String, dynamic> j) {
+    final club = (j['club'] ?? {}) as Map<String, dynamic>;
+    final rawPlayers =
+        (j['players'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final parsed = rawPlayers.map(MatchParticipant.fromJson).toList();
+    final accepted = parsed.where((p) => p.status == 'ACCEPTED').length;
+    return PadelMatch(
+      id: j['id'] as String,
+      clubName: (club['name'] ?? 'Club') as String,
+      city: (club['city'] ?? '') as String,
+      startsAt: DateTime.parse(j['startsAt'] as String),
+      durationMin: (j['durationMin'] as num).toInt(),
+      levelMin: _d(j['levelMin']),
+      levelMax: _d(j['levelMax']),
+      pricePerPlayerMad: _d(j['pricePerPlayerMad']),
+      status: (j['status'] ?? 'OPEN') as String,
+      acceptedCount: parsed.isEmpty ? 0 : accepted,
+      creatorId: j['creatorId'] as String?,
+      distanceM: j['distanceM'] == null
+          ? null
+          : double.tryParse(j['distanceM'].toString()),
+      players: parsed,
+    );
+  }
+}
+
 class Booking {
   Booking({
     required this.id,

@@ -111,7 +111,32 @@ export class MatchesService {
       where.startsAt = { gte: new Date(y, m - 1, d), lt: new Date(y, m - 1, d + 1) };
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    // Recherche par géolocalisation : on retient d'abord les clubs dans le
+    // rayon (PostGIS) puis on filtre les matchs sur ces clubs.
+    let distanceByClub: Map<string, number> | null = null;
+    if (query.lat !== undefined && query.lng !== undefined) {
+      const radiusM = (query.radiusKm ?? 25) * 1000;
+      const nearby = await this.prisma.$queryRaw<
+        Array<{ id: string; distance_m: number }>
+      >`
+        SELECT c.id,
+               ST_Distance(
+                 ST_SetSRID(ST_MakePoint(c.longitude::float8, c.latitude::float8), 4326)::geography,
+                 ST_SetSRID(ST_MakePoint(${query.lng}::float8, ${query.lat}::float8), 4326)::geography
+               ) AS distance_m
+        FROM clubs c
+        WHERE c.status = 'APPROVED'
+          AND ST_DWithin(
+                ST_SetSRID(ST_MakePoint(c.longitude::float8, c.latitude::float8), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(${query.lng}::float8, ${query.lat}::float8), 4326)::geography,
+                ${radiusM}
+              )
+      `;
+      distanceByClub = new Map(nearby.map((r) => [r.id, Math.round(r.distance_m)]));
+      where.clubId = { in: nearby.map((r) => r.id) };
+    }
+
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.match.findMany({
         where,
         include: {
@@ -127,6 +152,16 @@ export class MatchesService {
       }),
       this.prisma.match.count({ where }),
     ]);
+
+    // Annotation de la distance + tri par proximité si géoloc fournie
+    const items = rows.map((m) => ({
+      ...m,
+      distanceM: distanceByClub?.get(m.clubId) ?? null,
+    }));
+    if (distanceByClub) {
+      items.sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
+    }
+
     return { page, limit, total, items };
   }
 

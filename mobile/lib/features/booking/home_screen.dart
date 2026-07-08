@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/palette.dart';
 import '../auth/auth_controller.dart';
+import '../matching/matches_screen.dart';
 import 'clubs_screen.dart';
 import 'my_bookings_screen.dart';
 
@@ -24,6 +25,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         index: _index,
         children: const [
           ClubsScreen(),
+          MatchesScreen(),
           MyBookingsScreen(),
           ProfileScreen(),
         ],
@@ -38,9 +40,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: 'Clubs',
           ),
           NavigationDestination(
+            icon: Icon(Icons.groups_2_outlined),
+            selectedIcon: Icon(Icons.groups_2),
+            label: 'Matchs',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.confirmation_number_outlined),
             selectedIcon: Icon(Icons.confirmation_number),
-            label: 'Réservations',
+            label: 'Résas',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
