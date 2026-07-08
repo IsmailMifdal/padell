@@ -6,8 +6,8 @@ Application mobile de matching entre joueurs de padel et de réservation de terr
 |---|---|
 | [docs/](docs/README.md) | Cahier des charges, architecture, business model, APIs, roadmap |
 | [backend/](backend/) | API NestJS + PostgreSQL (PostGIS) + Redis — **MVP backend complet** |
+| [admin-web/](admin-web/) | Dashboard admin **Next.js** — login, KPIs, validation clubs, utilisateurs, modération, audit |
 | `mobile/` | App Flutter (à venir) |
-| `admin-web/` | Dashboard admin Next.js (à venir — les endpoints `/admin/*` sont prêts) |
 
 ## Démarrage rapide (backend)
 
@@ -31,8 +31,20 @@ npm run start:dev             # API sur http://localhost:3000/v1
 | S9-S10 | Matchs ouverts, rejoindre/accepter, paiement partagé, désistements, annulation auto H-2 | ✅ Backend |
 | S11-S12 | Chat WebSocket (`/chat`), notifications + rappels H-2, device tokens FCM | ✅ Backend |
 | S13-S14 | Espace club (calendrier, résa manuelle, blocage, check-in QR) + admin (KPIs, validation, modération, audit) | ✅ Backend |
-| — | App mobile Flutter, dashboard admin Next.js | ⬜ À faire |
+| — | Dashboard admin Next.js (login, KPIs, clubs, utilisateurs, signalements, audit) | ✅ Web |
+| — | App mobile Flutter | ⬜ À faire |
 | — | Prod : vrai fournisseur SMS, firebase-admin (push), upload S3, Sentry, tests charge k6 | ⬜ À faire |
+
+## Démarrage du dashboard admin
+
+```bash
+cd admin-web
+npm install
+cp .env.example .env.local     # NEXT_PUBLIC_API_URL → URL de l'API
+npm run dev                    # dashboard sur http://localhost:3002
+```
+
+> Connexion avec un compte dont le rôle inclut `ADMIN` (les autres comptes sont refusés).
 
 ## Aperçu de l'API (préfixe `/v1`)
 
