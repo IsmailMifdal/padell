@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../booking/booking_providers.dart';
@@ -67,7 +68,9 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
       appBar: AppBar(title: const Text('Créer un match')),
       body: AbsorbPointer(
         absorbing: _busy,
-        child: ListView(
+        child: PageContainer(
+          maxWidth: 760,
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           children: [
             _label('1 · Choisissez un club'),
@@ -173,6 +176,7 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
               ),
             ],
           ],
+          ),
         ),
       ),
     );

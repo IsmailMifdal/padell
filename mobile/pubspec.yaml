@@ -23,6 +23,8 @@ dependencies:
   google_fonts: ^6.2.1
   # Géolocalisation (matchs autour du joueur)
   geolocator: ^13.0.1
+  # Chat de match temps réel (gateway /chat du backend)
+  socket_io_client: ^3.1.2
 
 dev_dependencies:
   flutter_test:

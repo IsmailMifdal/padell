@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import 'booking_providers.dart';
@@ -18,7 +19,9 @@ class MyBookingsScreen extends ConsumerWidget {
     final bookings = ref.watch(myBookingsProvider);
     return SafeArea(
       bottom: false,
-      child: Column(
+      child: PageContainer(
+        maxWidth: 860,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
@@ -56,6 +59,7 @@ class MyBookingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

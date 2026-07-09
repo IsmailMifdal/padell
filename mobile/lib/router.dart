@@ -8,6 +8,7 @@ import 'features/auth/otp_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/booking/club_detail_screen.dart';
 import 'features/booking/home_screen.dart';
+import 'features/chat/chat_screen.dart';
 import 'features/matching/create_match_screen.dart';
 import 'features/matching/match_detail_screen.dart';
 import 'shared/models.dart';
@@ -56,6 +57,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/matches/:id',
         builder: (context, state) =>
             MatchDetailScreen(matchId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/matches/:id/chat',
+        builder: (context, state) =>
+            ChatScreen(matchId: state.pathParameters['id']!),
       ),
     ],
   );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
 import 'auth_controller.dart';
 import 'auth_repository.dart';
@@ -73,7 +74,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Connexion par SMS')),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: PageContainer(
+          maxWidth: 520,
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,6 +126,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   child: const Text('Changer de numéro'),
                 ),
             ],
+            ),
           ),
         ),
       ),

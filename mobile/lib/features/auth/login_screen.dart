@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
 import 'auth_controller.dart';
 
@@ -49,7 +50,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: PageContainer(
+        maxWidth: 560,
+        child: Column(
         children: [
           // Hero dégradé
           Container(
@@ -181,8 +184,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const Text(
                               'Pas encore de compte ?',
@@ -204,6 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

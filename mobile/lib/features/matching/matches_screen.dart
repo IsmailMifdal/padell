@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/api_client.dart';
 import '../../core/location_service.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../booking/home_screen.dart';
@@ -30,7 +31,8 @@ class MatchesScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: PageContainer(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
@@ -122,19 +124,37 @@ class MatchesScreen extends ConsumerWidget {
                           'Élargissez la zone ou créez votre match.',
                     );
                   }
+                  final wide = isWide(context);
                   return RefreshIndicator(
                     onRefresh: () async => ref.invalidate(nearbyMatchesProvider),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
-                      itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemBuilder: (context, i) => _MatchCard(match: list[i]),
-                    ),
+                    child: wide
+                        ? GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: isDesktop(context) ? 3 : 2,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              mainAxisExtent: 152,
+                            ),
+                            itemCount: list.length,
+                            itemBuilder: (context, i) =>
+                                _MatchCard(match: list[i]),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                            itemCount: list.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 14),
+                            itemBuilder: (context, i) =>
+                                _MatchCard(match: list[i]),
+                          ),
                   );
                 },
               ),
             ),
           ],
+          ),
         ),
       ),
     );

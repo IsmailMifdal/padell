@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
@@ -58,39 +59,71 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
                   subtitle: 'Essayez une autre ville ou effacez le filtre.',
                 );
               }
+              final title = Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Clubs disponibles',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      '${list.length}',
+                      style: const TextStyle(
+                        color: AppColors.slate,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              final wide = isWide(context);
               return RefreshIndicator(
                 onRefresh: () async => ref.invalidate(clubsProvider),
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                  itemCount: list.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) {
-                    if (i == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Clubs disponibles',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                              ),
+                child: PageContainer(
+                  child: wide
+                      // Grille 2-3 colonnes sur écran large
+                      ? CustomScrollView(
+                          slivers: [
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                              sliver: SliverToBoxAdapter(child: title),
                             ),
-                            Text(
-                              '${list.length}',
-                              style: const TextStyle(
-                                color: AppColors.slate,
-                                fontWeight: FontWeight.w600,
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                              sliver: SliverGrid(
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: isDesktop(context) ? 3 : 2,
+                                  mainAxisSpacing: 16,
+                                  crossAxisSpacing: 16,
+                                  mainAxisExtent: 216,
+                                ),
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, i) => _ClubCard(club: list[i]),
+                                  childCount: list.length,
+                                ),
                               ),
                             ),
                           ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                          itemCount: list.length + 1,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, i) {
+                            if (i == 0) return title;
+                            return _ClubCard(club: list[i - 1]);
+                          },
                         ),
-                      );
-                    }
-                    return _ClubCard(club: list[i - 1]);
-                  },
                 ),
               );
             },
@@ -124,7 +157,8 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
       child: SafeArea(
         bottom: false,
-        child: Column(
+        child: PageContainer(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
@@ -173,6 +207,7 @@ class _Header extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

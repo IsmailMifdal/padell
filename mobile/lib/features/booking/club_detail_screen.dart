@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import 'booking_providers.dart';
@@ -67,7 +68,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final gradient = AppColors.coverFor(widget.club.id);
 
     return Scaffold(
-      body: Column(
+      body: PageContainer(
+        maxWidth: 880,
+        child: Column(
         children: [
           // Hero
           Container(
@@ -180,6 +183,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

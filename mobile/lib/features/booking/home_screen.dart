@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../auth/auth_controller.dart';
 import '../matching/matches_screen.dart';
 import 'clubs_screen.dart';
@@ -18,18 +19,66 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _index = 0;
 
+  static const _tabs = [
+    ClubsScreen(),
+    MatchesScreen(),
+    MyBookingsScreen(),
+    ProfileScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final body = IndexedStack(index: _index, children: _tabs);
+
+    // Grand écran (web/desktop) : rail de navigation latéral
+    if (isWide(context)) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _index,
+              onDestinationSelected: (i) => setState(() => _index = i),
+              extended: isDesktop(context),
+              minExtendedWidth: 190,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              indicatorColor: AppColors.primary.withValues(alpha: 0.14),
+              leading: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Text('🎾', style: TextStyle(fontSize: 30)),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.search_outlined),
+                  selectedIcon: Icon(Icons.search),
+                  label: Text('Clubs'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.groups_2_outlined),
+                  selectedIcon: Icon(Icons.groups_2),
+                  label: Text('Matchs'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.confirmation_number_outlined),
+                  selectedIcon: Icon(Icons.confirmation_number),
+                  label: Text('Réservations'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: Text('Profil'),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
+
+    // Mobile : barre de navigation en bas
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          ClubsScreen(),
-          MatchesScreen(),
-          MyBookingsScreen(),
-          ProfileScreen(),
-        ],
-      ),
+      body: body,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
@@ -98,7 +147,9 @@ class ProfileScreen extends ConsumerWidget {
         ? '?'
         : user.firstName[0].toUpperCase();
 
-    return SingleChildScrollView(
+    return PageContainer(
+      maxWidth: 720,
+      child: SingleChildScrollView(
       child: Column(
         children: [
           // En-tête dégradé avec avatar
@@ -200,6 +251,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

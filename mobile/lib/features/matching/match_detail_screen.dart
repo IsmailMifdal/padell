@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
+import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
@@ -43,6 +45,62 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     }
   }
 
+  /// Crée la session CMI de sa part et affiche le récapitulatif.
+  /// En production, le formulaire retourné est posté vers la page CMI (webview).
+  Future<void> _payShare(PadelMatch m) async {
+    setState(() => _busy = true);
+    try {
+      final session =
+          await ref.read(matchingRepositoryProvider).paymentSession(m.id);
+      final fields = (session['fields'] ?? {}) as Map<String, dynamic>;
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Paiement de votre part'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Montant : ${m.pricePerPlayerMad.toStringAsFixed(0)} MAD',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Commande : ${fields['oid'] ?? '—'}',
+                style: const TextStyle(fontSize: 12, color: AppColors.slate),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'La session de paiement CMI est créée. En production, vous '
+                'seriez redirigé vers la page bancaire sécurisée pour finaliser '
+                'le paiement de votre part.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Compris'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiErrorMessage(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(matchDetailProvider(widget.matchId));
@@ -56,17 +114,21 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
           message: apiErrorMessage(e),
           onRetry: () => ref.invalidate(matchDetailProvider(widget.matchId)),
         ),
-        data: (m) => _content(context, m, myId),
+        data: (m) => PageContainer(
+          maxWidth: 760,
+          child: _content(context, m, myId),
+        ),
       ),
     );
   }
 
   Widget _content(BuildContext context, PadelMatch m, String? myId) {
-    final repo = ref.read(matchingRepositoryProvider);
     final isCreator = myId != null && m.creatorId == myId;
     final mine = m.players.where((p) => p.playerId == myId).toList();
     final myStatus = mine.isEmpty ? null : mine.first.status;
     final accepted = m.players.where((p) => p.status == 'ACCEPTED').toList();
+    final requested = m.players.where((p) => p.status == 'REQUESTED').toList();
+    final isParticipant = isCreator || myStatus == 'ACCEPTED';
 
     return Column(
       children: [
@@ -117,6 +179,23 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                   ],
                 ),
               ),
+              // Accès chat pour les participants
+              if (isParticipant) ...[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/matches/${m.id}/chat'),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  label: const Text('Ouvrir le chat du match'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    foregroundColor: AppColors.primaryDark,
+                    side: BorderSide(
+                        color: AppColors.primary.withValues(alpha: 0.4)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
               const SizedBox(height: 22),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,10 +216,21 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               const SizedBox(height: 12),
               ...accepted.map((p) => _playerRow(p, isCreatorId: m.creatorId)),
               for (int i = 0; i < m.spotsLeft; i++) _emptySlot(),
+              // Demandes en attente : visibles par l'organisateur
+              if (isCreator && requested.isNotEmpty) ...[
+                const SizedBox(height: 22),
+                Text(
+                  'Demandes en attente (${requested.length})',
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                ...requested.map((p) => _requestRow(m, p)),
+              ],
             ],
           ),
         ),
-        _actionBar(context, m, repo, isCreator, myStatus),
+        _actionBar(context, m, isCreator, myStatus),
       ],
     );
   }
@@ -148,19 +238,21 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   Widget _actionBar(
     BuildContext context,
     PadelMatch m,
-    MatchingRepository repo,
     bool isCreator,
     String? myStatus,
   ) {
-    Widget child;
+    final repo = ref.read(matchingRepositoryProvider);
+    final isAcceptedMember = isCreator || myStatus == 'ACCEPTED';
+
+    Widget primary;
     if (isCreator) {
-      child = _banner(
+      primary = _banner(
         Icons.verified_user,
         'Vous êtes l’organisateur de ce match.',
         AppColors.primary,
       );
     } else if (myStatus == 'ACCEPTED') {
-      child = OutlinedButton.icon(
+      primary = OutlinedButton.icon(
         onPressed: _busy
             ? null
             : () => _run(() => repo.withdraw(m.id), 'Vous vous êtes désisté'),
@@ -175,15 +267,15 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         ),
       );
     } else if (myStatus == 'REQUESTED') {
-      child = _banner(
+      primary = _banner(
         Icons.hourglass_top,
         'Demande envoyée — en attente de l’organisateur.',
         AppColors.amber,
       );
     } else if (m.spotsLeft == 0) {
-      child = _banner(Icons.block, 'Ce match est complet.', AppColors.slate);
+      primary = _banner(Icons.block, 'Ce match est complet.', AppColors.slate);
     } else {
-      child = FilledButton.icon(
+      primary = FilledButton.icon(
         onPressed: _busy
             ? null
             : () => _run(() => repo.join(m.id), 'Demande envoyée à l’organisateur'),
@@ -210,7 +302,93 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         color: Theme.of(context).colorScheme.surface,
         boxShadow: softShadow(0.08),
       ),
-      child: child,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Paiement de sa part (créateur inclus) tant que le match est ouvert
+          if (isAcceptedMember &&
+              (m.status == 'OPEN' || m.status == 'FULL')) ...[
+            FilledButton.tonalIcon(
+              onPressed: _busy ? null : () => _payShare(m),
+              icon: const Icon(Icons.credit_card, size: 20),
+              label: Text(
+                  'Payer ma part · ${m.pricePerPlayerMad.toStringAsFixed(0)} MAD'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                foregroundColor: AppColors.primaryDark,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          primary,
+        ],
+      ),
+    );
+  }
+
+  /// Ligne de demande en attente : accepter / refuser (organisateur).
+  Widget _requestRow(PadelMatch m, MatchParticipant p) {
+    final repo = ref.read(matchingRepositoryProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.amber.withValues(alpha: 0.15),
+            child: Text(
+              p.initial,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.amber,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(p.fullName,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                if (p.level != null)
+                  Text('Niveau ${_lvl(p.level!)}',
+                      style: const TextStyle(
+                          color: AppColors.slate, fontSize: 12)),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Refuser',
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => repo.respond(m.id, p.playerId, accept: false),
+                      'Demande refusée',
+                    ),
+            icon: const Icon(Icons.close, color: AppColors.danger),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.danger.withValues(alpha: 0.10),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Accepter',
+            onPressed: _busy
+                ? null
+                : () => _run(
+                      () => repo.respond(m.id, p.playerId, accept: true),
+                      '${p.firstName} a rejoint le match 🎾',
+                    ),
+            icon: const Icon(Icons.check, color: Colors.white),
+            style: IconButton.styleFrom(backgroundColor: AppColors.primary),
+          ),
+        ],
+      ),
     );
   }
 

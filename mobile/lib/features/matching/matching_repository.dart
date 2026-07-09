@@ -46,6 +46,20 @@ class MatchingRepository {
     await _dio.post<void>('/matches/$id/join');
   }
 
+  /// L'organisateur accepte ou refuse une demande de participation.
+  Future<void> respond(String matchId, String playerId, {required bool accept}) async {
+    await _dio.post<void>(
+      '/matches/$matchId/players/$playerId/${accept ? 'accept' : 'decline'}',
+    );
+  }
+
+  /// Session de paiement CMI pour sa part du match (formulaire à poster).
+  Future<Map<String, dynamic>> paymentSession(String matchId) async {
+    final res = await _dio
+        .post<Map<String, dynamic>>('/payments/matches/$matchId/session');
+    return res.data!;
+  }
+
   Future<void> withdraw(String id) async {
     await _dio.post<void>('/matches/$id/withdraw');
   }
