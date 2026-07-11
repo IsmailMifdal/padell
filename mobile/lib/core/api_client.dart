@@ -32,6 +32,11 @@ class ApiClient {
   final TokenStorage _storage;
   final void Function()? onSessionExpired;
 
+  /// Refresh en cours, partagé entre toutes les requêtes 401 simultanées.
+  /// Indispensable : le refresh token est à rotation — deux refresh parallèles
+  /// feraient échouer le second et déconnecteraient l'utilisateur.
+  Future<bool>? _refreshing;
+
   Future<void> _onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
@@ -73,7 +78,13 @@ class ApiClient {
     }
   }
 
-  Future<bool> _tryRefresh() async {
+  Future<bool> _tryRefresh() {
+    // Single-flight : les 401 concurrents attendent le même refresh.
+    return _refreshing ??=
+        _doRefresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<bool> _doRefresh() async {
     final refresh = await _storage.refreshToken;
     if (refresh == null) return false;
     try {

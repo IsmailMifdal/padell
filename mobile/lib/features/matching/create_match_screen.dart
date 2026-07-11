@@ -50,6 +50,13 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
         context.pushReplacement('/matches/${match.id}');
       }
     } catch (e) {
+      // Créneau plus disponible (verrou/réservation entre-temps) :
+      // on recharge la grille pour retirer les créneaux fantômes.
+      if (_club != null) {
+        ref.invalidate(
+          availabilityProvider((clubId: _club!.id, day: _day)),
+        );
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(apiErrorMessage(e))),

@@ -74,6 +74,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         );
       }
     } catch (e) {
+      // Créneau pris entre-temps : recharge la grille pour rester à jour
+      ref.invalidate(
+        availabilityProvider((clubId: widget.club.id, day: _day)),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(apiErrorMessage(e))),

@@ -221,6 +221,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   ) {
     final repo = ref.read(matchingRepositoryProvider);
     final isAcceptedMember = isCreator || myStatus == 'ACCEPTED';
+    final myId = ref.read(authControllerProvider).user?.id;
+    final iPaid = m.players
+        .any((p) => p.playerId == myId && p.hasPaid);
 
     Widget primary;
     if (isCreator) {
@@ -286,6 +289,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         children: [
           // Paiement de sa part (créateur inclus) tant que le match est ouvert
           if (isAcceptedMember &&
+              !iPaid &&
               (m.status == 'OPEN' || m.status == 'FULL')) ...[
             FilledButton.tonalIcon(
               onPressed: _busy ? null : () => _payShare(m),
@@ -299,6 +303,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
               ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (isAcceptedMember && iPaid && m.status != 'CONFIRMED') ...[
+            _banner(
+              Icons.check_circle,
+              'Votre part est payée — en attente des autres joueurs.',
+              AppColors.primary,
             ),
             const SizedBox(height: 10),
           ],
@@ -405,6 +417,15 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               ],
             ),
           ),
+          if (p.hasPaid)
+            const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: InfoChip(
+                label: 'Payé',
+                icon: Icons.check_circle,
+                color: AppColors.primary,
+              ),
+            ),
           if (isCreator)
             const InfoChip(
               label: 'Organisateur',

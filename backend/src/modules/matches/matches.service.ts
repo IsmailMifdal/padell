@@ -172,7 +172,11 @@ export class MatchesService {
         club: { select: { id: true, name: true, city: true, address: true } },
         players: {
           where: { status: { in: [MatchPlayerStatus.ACCEPTED, MatchPlayerStatus.REQUESTED] } },
-          include: { player: { select: PLAYER_PUBLIC_SELECT } },
+          include: {
+            player: { select: PLAYER_PUBLIC_SELECT },
+            // Statut du paiement de la part (l'app masque « Payer » si PAID)
+            payment: { select: { status: true } },
+          },
         },
       },
     });

@@ -118,6 +118,7 @@ class MatchParticipant {
     required this.lastName,
     required this.status,
     this.level,
+    this.hasPaid = false,
   });
 
   final String playerId;
@@ -126,12 +127,16 @@ class MatchParticipant {
   final String status; // REQUESTED | ACCEPTED | ...
   final double? level;
 
+  /// Part du match payée (paiement au statut PAID).
+  final bool hasPaid;
+
   String get fullName => '$firstName $lastName';
   String get initial => firstName.isEmpty ? '?' : firstName[0].toUpperCase();
 
   factory MatchParticipant.fromJson(Map<String, dynamic> j) {
     final player = (j['player'] ?? {}) as Map<String, dynamic>;
     final profile = (player['profile'] ?? {}) as Map<String, dynamic>;
+    final payment = j['payment'] as Map<String, dynamic>?;
     return MatchParticipant(
       // Selon l'endpoint, l'id est dans player.id ou directement playerId
       playerId: (player['id'] ?? j['playerId'] ?? '') as String,
@@ -141,6 +146,7 @@ class MatchParticipant {
       level: profile['level'] == null
           ? null
           : double.tryParse(profile['level'].toString()),
+      hasPaid: payment?['status'] == 'PAID',
     );
   }
 }
