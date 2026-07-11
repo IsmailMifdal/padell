@@ -7,6 +7,8 @@ import '../../core/api_client.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
+import '../../shared/payment_dialog.dart';
+import '../../shared/payments_api.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
 import 'matching_providers.dart';
@@ -45,51 +47,27 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     }
   }
 
-  /// Crée la session CMI de sa part et affiche le récapitulatif.
-  /// En production, le formulaire retourné est posté vers la page CMI (webview).
+  /// Crée la session CMI de sa part puis ouvre la feuille de paiement
+  /// (finalisable par simulation en développement).
   Future<void> _payShare(PadelMatch m) async {
     setState(() => _busy = true);
     try {
-      final session =
-          await ref.read(matchingRepositoryProvider).paymentSession(m.id);
-      final fields = (session['fields'] ?? {}) as Map<String, dynamic>;
-      if (!mounted) return;
-      await showDialog<void>(
+      final api = ref.read(paymentsApiProvider);
+      final paid = await showPaymentSheet(
         context: context,
-        builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Paiement de votre part'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Montant : ${m.pricePerPlayerMad.toStringAsFixed(0)} MAD',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Commande : ${fields['oid'] ?? '—'}',
-                style: const TextStyle(fontSize: 12, color: AppColors.slate),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'La session de paiement CMI est créée. En production, vous '
-                'seriez redirigé vers la page bancaire sécurisée pour finaliser '
-                'le paiement de votre part.',
-                style: TextStyle(fontSize: 13),
-              ),
-            ],
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Compris'),
-            ),
-          ],
-        ),
+        api: api,
+        amountMad: m.pricePerPlayerMad,
+        createSession: () => api.matchSession(m.id),
       );
+      if (paid) {
+        ref.invalidate(matchDetailProvider(m.id));
+        ref.invalidate(nearbyMatchesProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Part payée ✅')),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

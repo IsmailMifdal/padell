@@ -53,6 +53,13 @@ export class PaymentsController {
     return this.payments.findMine(user);
   }
 
+  /** DEV uniquement : simule un paiement CMI réussi (403 en production). */
+  @HttpCode(HttpStatus.OK)
+  @Post('dev/simulate')
+  simulateDev(@CurrentUser() user: AuthUser, @Body() body: { oid: string }) {
+    return this.payments.simulatePaymentDev(user, body?.oid ?? '');
+  }
+
   /** Reversements d'un club (propriétaire ou admin). */
   @Get('clubs/:clubId/payouts')
   async listPayouts(

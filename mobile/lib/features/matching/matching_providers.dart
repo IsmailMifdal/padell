@@ -23,3 +23,11 @@ final matchDetailProvider =
     FutureProvider.autoDispose.family<PadelMatch, String>((ref, id) {
   return ref.watch(matchingRepositoryProvider).detail(id);
 });
+
+/// Onglet Matchs : false = autour de moi, true = mes matchs.
+final showMyMatchesProvider = StateProvider<bool>((ref) => false);
+
+/// Matchs auxquels je participe (créés ou rejoints).
+final myMatchesProvider = FutureProvider.autoDispose<List<PadelMatch>>((ref) {
+  return ref.watch(matchingRepositoryProvider).mine();
+});

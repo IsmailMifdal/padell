@@ -35,13 +35,14 @@ class BookingRepository {
     return slots.map(Slot.fromJson).toList();
   }
 
-  Future<Booking> book(Slot slot) async {
+  /// [paymentMode] : 'ON_SITE' (confirmation immédiate + QR) ou 'ONLINE'
+  /// (réservation en attente, à finaliser via la session CMI).
+  Future<Booking> book(Slot slot, {String paymentMode = 'ON_SITE'}) async {
     final res = await _dio.post<Map<String, dynamic>>('/bookings', data: {
       'courtId': slot.courtId,
       'startsAt': _localFmt.format(slot.startsAt),
       'durationMin': slot.durationMin,
-      // MVP mobile : paiement sur place (confirmation immédiate + QR)
-      'paymentMode': 'ON_SITE',
+      'paymentMode': paymentMode,
     });
     return Booking.fromJson(res.data!);
   }

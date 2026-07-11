@@ -3,6 +3,10 @@ import 'dart:convert';
 /// Modèles partagés (parseurs tolérants au camelCase et snake_case renvoyés
 /// selon les endpoints de l'API).
 
+/// L'API sérialise les dates en UTC ("...Z") : conversion systématique en
+/// heure locale de l'appareil pour l'affichage et les envois.
+DateTime parseLocal(dynamic iso) => DateTime.parse(iso as String).toLocal();
+
 class User {
   User({
     required this.id,
@@ -53,6 +57,7 @@ class Club {
     required this.address,
     this.ratingAvg,
     this.distanceM,
+    this.paymentOnSiteAllowed = true,
   });
 
   final String id;
@@ -61,6 +66,7 @@ class Club {
   final String address;
   final double? ratingAvg;
   final double? distanceM;
+  final bool paymentOnSiteAllowed;
 
   static double? _toDouble(dynamic v) =>
       v == null ? null : double.tryParse(v.toString());
@@ -72,6 +78,9 @@ class Club {
         address: (j['address'] ?? '') as String,
         ratingAvg: _toDouble(j['ratingAvg'] ?? j['rating_avg']),
         distanceM: _toDouble(j['distanceM'] ?? j['distance_m']),
+        paymentOnSiteAllowed:
+            (j['paymentOnSiteAllowed'] ?? j['payment_on_site_allowed'] ?? true)
+                as bool,
       );
 }
 
@@ -95,8 +104,8 @@ class Slot {
   factory Slot.fromJson(Map<String, dynamic> j) => Slot(
         courtId: j['courtId'] as String,
         courtName: (j['courtName'] ?? '') as String,
-        startsAt: DateTime.parse(j['startsAt'] as String),
-        endsAt: DateTime.parse(j['endsAt'] as String),
+        startsAt: parseLocal(j['startsAt']),
+        endsAt: parseLocal(j['endsAt']),
         durationMin: (j['durationMin'] as num).toInt(),
         priceMad: (j['priceMad'] as num).toDouble(),
       );
@@ -124,7 +133,8 @@ class MatchParticipant {
     final player = (j['player'] ?? {}) as Map<String, dynamic>;
     final profile = (player['profile'] ?? {}) as Map<String, dynamic>;
     return MatchParticipant(
-      playerId: player['id'] as String,
+      // Selon l'endpoint, l'id est dans player.id ou directement playerId
+      playerId: (player['id'] ?? j['playerId'] ?? '') as String,
       firstName: (profile['firstName'] ?? '') as String,
       lastName: (profile['lastName'] ?? '') as String,
       status: (j['status'] ?? 'ACCEPTED') as String,
@@ -181,7 +191,7 @@ class PadelMatch {
       id: j['id'] as String,
       clubName: (club['name'] ?? 'Club') as String,
       city: (club['city'] ?? '') as String,
-      startsAt: DateTime.parse(j['startsAt'] as String),
+      startsAt: parseLocal(j['startsAt']),
       durationMin: (j['durationMin'] as num).toInt(),
       levelMin: _d(j['levelMin']),
       levelMax: _d(j['levelMax']),
@@ -224,8 +234,8 @@ class Booking {
     return Booking(
       id: j['id'] as String,
       status: (j['status'] ?? '') as String,
-      startsAt: DateTime.parse(j['startsAt'] as String),
-      endsAt: DateTime.parse(j['endsAt'] as String),
+      startsAt: parseLocal(j['startsAt']),
+      endsAt: parseLocal(j['endsAt']),
       priceMad: (j['priceMad'] as num).toDouble(),
       qrCode: j['qrCode'] as String?,
       courtName: court?['name'] as String?,

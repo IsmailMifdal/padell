@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -176,33 +177,7 @@ export class PaymentsService {
     if (payment.status === PaymentStatus.FAILED) return 'APPROVED';
 
     if (this.cmi.isSuccess(body)) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.PAID,
-          cmiTransactionId: body.TransId ?? null,
-        },
-      });
-      if (payment.bookingId) {
-        // Confirmation de la réservation + génération du QR de check-in
-        await this.prisma.booking.update({
-          where: { id: payment.bookingId },
-          data: {
-            status: BookingStatus.CONFIRMED,
-            qrCode: randomBytes(16).toString('hex'),
-          },
-        });
-        await this.notifications.notify(
-          payment.userId,
-          'BOOKING_CONFIRMED',
-          'Réservation confirmée ✅',
-          'Votre paiement est validé — retrouvez votre QR code dans Mes réservations',
-          { bookingId: payment.bookingId },
-        );
-      }
-      if (payment.matchId) {
-        await this.confirmMatchIfComplete(payment.matchId);
-      }
+      await this.applySuccessfulPayment(payment.id, body.TransId ?? null);
       return 'ACTION=POSTAUTH';
     }
 
@@ -220,6 +195,62 @@ export class PaymentsService {
       });
     }
     return 'APPROVED';
+  }
+
+  /** Applique les effets d'un paiement réussi (réservation, match, notifs). */
+  private async applySuccessfulPayment(
+    paymentId: string,
+    transId: string | null,
+  ): Promise<void> {
+    const payment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.PAID, cmiTransactionId: transId },
+    });
+    if (payment.bookingId) {
+      // Confirmation de la réservation + génération du QR de check-in
+      await this.prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          qrCode: randomBytes(16).toString('hex'),
+        },
+      });
+      await this.notifications.notify(
+        payment.userId,
+        'BOOKING_CONFIRMED',
+        'Réservation confirmée ✅',
+        'Votre paiement est validé — retrouvez votre QR code dans Mes réservations',
+        { bookingId: payment.bookingId },
+      );
+    }
+    if (payment.matchId) {
+      await this.confirmMatchIfComplete(payment.matchId);
+    }
+  }
+
+  /**
+   * DEV uniquement : simule un paiement CMI réussi pour une commande.
+   * Permet de tester la boucle complète sans compte marchand de test.
+   */
+  async simulatePaymentDev(user: AuthUser, oid: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Simulation indisponible en production');
+    }
+    const payment = await this.prisma.payment.findUnique({
+      where: { cmiOrderId: oid },
+    });
+    if (!payment || payment.userId !== user.userId) {
+      throw new NotFoundException('Commande introuvable');
+    }
+    if (payment.status === PaymentStatus.PAID) {
+      return { simulated: true, alreadyPaid: true };
+    }
+    if (payment.status !== PaymentStatus.INITIATED) {
+      throw new BadRequestException(`Paiement au statut ${payment.status}`);
+    }
+    await this.applySuccessfulPayment(payment.id, 'DEV-SIMULATED');
+    this.logger.warn(`[DEV] Paiement simulé pour la commande ${oid}`);
+    return { simulated: true };
   }
 
   /** 4 parts payées → match confirmé + réservation confirmée avec QR. */

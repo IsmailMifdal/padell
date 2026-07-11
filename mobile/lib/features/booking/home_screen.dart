@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../auth/auth_controller.dart';
 import '../matching/matches_screen.dart';
+import '../profile/profile_repository.dart';
 import 'clubs_screen.dart';
 import 'my_bookings_screen.dart';
 
+/// Onglet actif de l'accueil (permet aux écrans de changer d'onglet).
+final homeTabProvider = StateProvider<int>((ref) => 0);
+
 /// Écran principal après connexion : navigation par onglets.
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
-
-  @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _index = 0;
 
   static const _tabs = [
     ClubsScreen(),
@@ -27,8 +25,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final body = IndexedStack(index: _index, children: _tabs);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(homeTabProvider);
+    final body = IndexedStack(index: index, children: _tabs);
+    void select(int i) => ref.read(homeTabProvider.notifier).state = i;
 
     // Grand écran (web/desktop) : rail de navigation latéral
     if (isWide(context)) {
@@ -36,8 +36,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         body: Row(
           children: [
             NavigationRail(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
+              selectedIndex: index,
+              onDestinationSelected: select,
               extended: isDesktop(context),
               minExtendedWidth: 190,
               backgroundColor: Theme.of(context).colorScheme.surface,
@@ -80,8 +80,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: index,
+        onDestinationSelected: select,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
@@ -142,125 +142,206 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authControllerProvider).user;
-    final initial = (user == null || user.firstName.isEmpty)
-        ? '?'
-        : user.firstName[0].toUpperCase();
+    final me = ref.watch(meProvider).valueOrNull;
+    final fallback = ref.watch(authControllerProvider).user;
+    final firstName = me?.firstName ?? fallback?.firstName ?? '';
+    final fullName = me?.fullName ?? fallback?.fullName ?? '';
+    final contact = me?.email ?? me?.phone ?? fallback?.email ?? '';
+    final initial = firstName.isEmpty ? '?' : firstName[0].toUpperCase();
 
     return PageContainer(
       maxWidth: 720,
       child: SingleChildScrollView(
-      child: Column(
-        children: [
-          // En-tête dégradé avec avatar
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-            ),
-            padding: const EdgeInsets.only(bottom: 28),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  Container(
-                    height: 92,
-                    width: 92,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primaryDark,
+        child: Column(
+          children: [
+            // En-tête dégradé avec avatar
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: AppColors.heroGradient,
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(28)),
+              ),
+              padding: const EdgeInsets.only(bottom: 24),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Container(
+                      height: 92,
+                      width: 92,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDark,
+                          ),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    Text(
+                      fullName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      contact,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    if (me != null) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _stat('Niveau',
+                              me.level?.toStringAsFixed(1) ?? '—'),
+                          const SizedBox(width: 10),
+                          _stat('Matchs', '${me.matchesPlayed}'),
+                          if (me.city != null && me.city!.isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            _stat('Ville', me.city!),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  if (me?.isOwner == true)
+                    _ProfileTile(
+                      icon: Icons.stadium_outlined,
+                      label: 'Espace club',
+                      onTap: () => context.push('/owner'),
+                    ),
+                  _ProfileTile(
+                    icon: Icons.event_available_outlined,
+                    label: 'Mes réservations',
+                    onTap: () =>
+                        ref.read(homeTabProvider.notifier).state = 2,
                   ),
-                  const SizedBox(height: 14),
-                  Text(
-                    user?.fullName ?? '',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
+                  _ProfileTile(
+                    icon: Icons.sports_tennis_outlined,
+                    label: 'Mon profil de jeu',
+                    onTap: () => context.push('/profile/edit'),
+                  ),
+                  _ProfileTile(
+                    icon: Icons.notifications_none_rounded,
+                    label: 'Notifications',
+                    onTap: () => context.push('/notifications'),
+                  ),
+                  _ProfileTile(
+                    icon: Icons.help_outline_rounded,
+                    label: 'Aide & support',
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        title: const Text('Aide & support'),
+                        content: const Text(
+                          'Une question, un souci de réservation ou de '
+                          'paiement ?\n\nÉcrivez-nous : support@padel.ma\n'
+                          'Nous répondons sous 24 h.',
+                        ),
+                        actions: [
+                          FilledButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user?.email ?? user?.phone ?? '',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        ref.read(authControllerProvider.notifier).logout(),
+                    icon: const Icon(Icons.logout, size: 20),
+                    label: const Text('Se déconnecter'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      foregroundColor: AppColors.danger,
+                      side: BorderSide(
+                        color: AppColors.danger.withValues(alpha: 0.4),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const _ProfileTile(
-                  icon: Icons.event_available_outlined,
-                  label: 'Mes réservations',
-                ),
-                const _ProfileTile(
-                  icon: Icons.sports_tennis_outlined,
-                  label: 'Mon niveau de jeu',
-                ),
-                const _ProfileTile(
-                  icon: Icons.notifications_none_rounded,
-                  label: 'Notifications',
-                ),
-                const _ProfileTile(
-                  icon: Icons.help_outline_rounded,
-                  label: 'Aide & support',
-                ),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      ref.read(authControllerProvider.notifier).logout(),
-                  icon: const Icon(Icons.logout, size: 20),
-                  label: const Text('Se déconnecter'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    foregroundColor: AppColors.danger,
-                    side: BorderSide(
-                      color: AppColors.danger.withValues(alpha: 0.4),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _stat(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _ProfileTile extends StatelessWidget {
-  const _ProfileTile({required this.icon, required this.label});
+  const _ProfileTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +352,7 @@ class _ProfileTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(

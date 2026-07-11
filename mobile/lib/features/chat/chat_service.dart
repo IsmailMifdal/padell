@@ -30,7 +30,7 @@ class ChatMessage {
     return ChatMessage(
       id: j['id'] as String,
       body: (j['body'] ?? '') as String,
-      sentAt: DateTime.parse(j['sentAt'] as String),
+      sentAt: DateTime.parse(j['sentAt'] as String).toLocal(),
       senderId: (sender['id'] ?? '') as String,
       senderName:
           '${profile['firstName'] ?? ''} ${profile['lastName'] ?? ''}'.trim(),

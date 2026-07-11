@@ -17,7 +17,9 @@ class MatchesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final matches = ref.watch(nearbyMatchesProvider);
+    final showMine = ref.watch(showMyMatchesProvider);
+    final matches =
+        ref.watch(showMine ? myMatchesProvider : nearbyMatchesProvider);
     final radius = ref.watch(matchRadiusProvider);
     final center = ref.watch(geoCenterProvider);
 
@@ -37,96 +39,131 @@ class MatchesScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 8),
             const ScreenHeader(
-              title: 'Trouver un match',
+              title: 'Matchs',
               subtitle: 'Rejoignez des joueurs près de chez vous',
             ),
             const SizedBox(height: 12),
-            // Zone + statut géoloc
+            // Bascule Autour de moi / Mes matchs
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: center.maybeWhen(
-                data: (c) => Row(
-                  children: [
-                    Icon(
-                      c.isReal ? Icons.my_location : Icons.location_off,
-                      size: 15,
-                      color: AppColors.slate,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        c.isReal
-                            ? 'Autour de votre position'
-                            : 'Position indisponible · zone Casablanca',
-                        style: const TextStyle(
-                          color: AppColors.slate,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                orElse: () => const SizedBox.shrink(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Sélecteur de rayon
-            SizedBox(
-              height: 38,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [10.0, 25.0, 50.0, 100.0].map((r) {
-                  final sel = radius == r;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () =>
-                          ref.read(matchRadiusProvider.notifier).state = r,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: sel ? AppColors.heroGradient : null,
-                          color: sel ? null : Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: softShadow(0.04),
-                        ),
-                        child: Text(
-                          '${r.toInt()} km',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: sel ? Colors.white : AppColors.slate,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.near_me_outlined, size: 17),
+                    label: Text('Autour de moi'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.person_outline, size: 17),
+                    label: Text('Mes matchs'),
+                  ),
+                ],
+                selected: {showMine},
+                onSelectionChanged: (s) =>
+                    ref.read(showMyMatchesProvider.notifier).state = s.first,
               ),
             ),
             const SizedBox(height: 12),
+            if (!showMine) ...[
+              // Zone + statut géoloc
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: center.maybeWhen(
+                  data: (c) => Row(
+                    children: [
+                      Icon(
+                        c.isReal ? Icons.my_location : Icons.location_off,
+                        size: 15,
+                        color: AppColors.slate,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          c.isReal
+                              ? 'Autour de votre position'
+                              : 'Position indisponible · zone Casablanca',
+                          style: const TextStyle(
+                            color: AppColors.slate,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Sélecteur de rayon
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [10.0, 25.0, 50.0, 100.0].map((r) {
+                    final sel = radius == r;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () =>
+                            ref.read(matchRadiusProvider.notifier).state = r,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: sel ? AppColors.heroGradient : null,
+                            color: sel
+                                ? null
+                                : Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: softShadow(0.04),
+                          ),
+                          child: Text(
+                            '${r.toInt()} km',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: sel ? Colors.white : AppColors.slate,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Expanded(
               child: matches.when(
                 loading: () => const CenteredLoader(),
                 error: (e, _) => ErrorRetry(
                   message: apiErrorMessage(e),
-                  onRetry: () => ref.invalidate(nearbyMatchesProvider),
+                  onRetry: () => ref.invalidate(
+                      showMine ? myMatchesProvider : nearbyMatchesProvider),
                 ),
                 data: (list) {
                   if (list.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.groups_2_outlined,
-                      title: 'Aucun match ouvert',
-                      subtitle:
-                          'Personne ne joue dans un rayon de ${radius.toInt()} km.\n'
-                          'Élargissez la zone ou créez votre match.',
-                    );
+                    return showMine
+                        ? const EmptyState(
+                            icon: Icons.person_outline,
+                            title: 'Aucun match à vous',
+                            subtitle:
+                                'Créez un match ou rejoignez-en un\npour le retrouver ici.',
+                          )
+                        : EmptyState(
+                            icon: Icons.groups_2_outlined,
+                            title: 'Aucun match ouvert',
+                            subtitle:
+                                'Personne ne joue dans un rayon de ${radius.toInt()} km.\n'
+                                'Élargissez la zone ou créez votre match.',
+                          );
                   }
                   final wide = isWide(context);
                   return RefreshIndicator(
-                    onRefresh: () async => ref.invalidate(nearbyMatchesProvider),
+                    onRefresh: () async => ref.invalidate(
+                        showMine ? myMatchesProvider : nearbyMatchesProvider),
                     child: wide
                         ? GridView.builder(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),

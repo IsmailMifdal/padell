@@ -191,8 +191,11 @@ export class MatchesService {
         },
       },
       include: {
-        club: { select: { id: true, name: true, city: true } },
-        players: { where: { status: MatchPlayerStatus.ACCEPTED }, select: { playerId: true } },
+        club: { select: { id: true, name: true, city: true, address: true } },
+        players: {
+          where: { status: MatchPlayerStatus.ACCEPTED },
+          select: { status: true, player: { select: PLAYER_PUBLIC_SELECT } },
+        },
       },
       orderBy: { startsAt: 'desc' },
       take: 100,

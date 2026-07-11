@@ -6,6 +6,8 @@ import '../../core/api_client.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
+import '../../shared/payment_dialog.dart';
+import '../../shared/payments_api.dart';
 import '../../shared/widgets.dart';
 import 'booking_providers.dart';
 import 'booking_repository.dart';
@@ -30,24 +32,45 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }
 
   Future<void> _book(Slot slot) async {
-    final confirmed = await showModalBottomSheet<bool>(
+    // 'ON_SITE' | 'ONLINE' | null (annulé)
+    final mode = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _ConfirmSheet(club: widget.club, slot: slot),
     );
-    if (confirmed != true) return;
+    if (mode == null) return;
 
     setState(() => _booking = true);
     try {
-      await ref.read(bookingRepositoryProvider).book(slot);
+      final booking =
+          await ref.read(bookingRepositoryProvider).book(slot, paymentMode: mode);
+
+      var confirmed = mode == 'ON_SITE';
+      if (mode == 'ONLINE') {
+        // Paiement en ligne : session CMI puis finalisation
+        final api = ref.read(paymentsApiProvider);
+        if (mounted) {
+          confirmed = await showPaymentSheet(
+            context: context,
+            api: api,
+            amountMad: slot.priceMad,
+            createSession: () => api.bookingSession(booking.id),
+          );
+        }
+      }
+
       ref.invalidate(myBookingsProvider);
       ref.invalidate(
         availabilityProvider((clubId: widget.club.id, day: _day)),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Réservation confirmée ✅')),
+          SnackBar(
+            content: Text(confirmed
+                ? 'Réservation confirmée ✅'
+                : 'Réservation en attente de paiement (10 min)'),
+          ),
         );
       }
     } catch (e) {
@@ -373,8 +396,7 @@ class _ConfirmSheet extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total (paiement sur place)',
-                    style: TextStyle(color: AppColors.slate)),
+                const Text('Total', style: TextStyle(color: AppColors.slate)),
                 Text(
                   '${slot.priceMad.toStringAsFixed(0)} MAD',
                   style: const TextStyle(
@@ -387,13 +409,30 @@ class _ConfirmSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmer ma réservation'),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, 'ONLINE'),
+            icon: const Icon(Icons.credit_card, size: 20),
+            label: const Text('Payer en ligne (CMI)'),
           ),
+          if (club.paymentOnSiteAllowed) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context, 'ON_SITE'),
+              icon: const Icon(Icons.storefront_outlined, size: 20),
+              label: const Text('Payer sur place'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                foregroundColor: AppColors.primaryDark,
+                side:
+                    BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Annuler'),
           ),
         ],
