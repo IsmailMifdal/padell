@@ -82,6 +82,16 @@ export class OwnerController {
     return this.owner.checkin(user, clubId, dto);
   }
 
+  /** Statistiques d'exploitation (remplissage, revenus, heures pleines). */
+  @Get('stats')
+  stats(
+    @CurrentUser() user: AuthUser,
+    @Param('clubId', ParseUUIDPipe) clubId: string,
+    @Query('days') days?: string,
+  ) {
+    return this.owner.stats(user, clubId, Math.min(Number(days) || 30, 365));
+  }
+
   @Get('payouts')
   async listPayouts(
     @CurrentUser() user: AuthUser,

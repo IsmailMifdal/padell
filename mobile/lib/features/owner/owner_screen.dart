@@ -226,7 +226,21 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
   Widget build(BuildContext context) {
     final calendar = ref.watch(ownerCalendarProvider(_args));
     return Scaffold(
-      appBar: AppBar(title: Text(widget.club.name)),
+      appBar: AppBar(
+        title: Text(widget.club.name),
+        actions: [
+          IconButton(
+            tooltip: 'Statistiques',
+            icon: const Icon(Icons.insights_outlined),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => _StatsSheet(clubId: widget.club.id),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet<void>(
           context: context,
@@ -402,6 +416,152 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
       ),
     );
   }
+}
+
+/// Statistiques d'exploitation (30 jours) : réservations, revenus, heures.
+class _StatsSheet extends ConsumerWidget {
+  const _StatsSheet({required this.clubId});
+  final String clubId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(ownerStatsProvider(clubId));
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        14,
+        24,
+        24 + MediaQuery.of(context).viewPadding.bottom,
+      ),
+      child: stats.when(
+        loading: () => const SizedBox(height: 220, child: CenteredLoader()),
+        error: (e, _) => SizedBox(
+          height: 200,
+          child: ErrorRetry(
+            message: apiErrorMessage(e),
+            onRetry: () => ref.invalidate(ownerStatsProvider(clubId)),
+          ),
+        ),
+        data: (s) {
+          final maxCount = s.byHour.values.isEmpty
+              ? 1
+              : s.byHour.values.reduce((a, b) => a > b ? a : b);
+          final hours = s.byHour.keys.toList()..sort();
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    height: 5,
+                    width: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.line,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Activité — ${s.days} derniers jours',
+                  style: const TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _kpi('Réservations', '${s.totalBookings}')),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _kpi('Revenus',
+                            '${s.revenueMad.toStringAsFixed(0)} MAD')),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _kpi('Annulations', '${s.cancelledBookings}')),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _kpi('Résas manuelles', '${s.manualShare} %')),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Réservations par heure',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                if (hours.isEmpty)
+                  const Text('Pas encore de données.',
+                      style: TextStyle(color: AppColors.slate))
+                else
+                  ...hours.map((h) {
+                    final count = s.byHour[h]!;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 48,
+                            child: Text(
+                              '${h.toString().padLeft(2, '0')}h',
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.slate),
+                            ),
+                          ),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                value: count / maxCount,
+                                minHeight: 10,
+                                backgroundColor: AppColors.line,
+                                valueColor: const AlwaysStoppedAnimation(
+                                    AppColors.primary),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('$count',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _kpi(String label, String value) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 19, fontWeight: FontWeight.w800)),
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 12, color: AppColors.slate)),
+          ],
+        ),
+      );
 }
 
 class _ActionsSheet extends StatelessWidget {

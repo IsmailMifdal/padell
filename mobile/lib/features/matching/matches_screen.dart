@@ -134,6 +134,8 @@ class MatchesScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
+              // Suggestions « Pour toi » (score de compatibilité)
+              const _SuggestionsStrip(),
             ],
             Expanded(
               child: matches.when(
@@ -194,6 +196,109 @@ class MatchesScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Carrousel horizontal des matchs recommandés avec % de compatibilité.
+class _SuggestionsStrip extends ConsumerWidget {
+  const _SuggestionsStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final suggestions = ref.watch(suggestionsProvider).valueOrNull ?? const [];
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 2, 20, 8),
+          child: Text(
+            '✨ Pour toi',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+        ),
+        SizedBox(
+          height: 128,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: suggestions.length,
+            itemBuilder: (context, i) {
+              final m = suggestions[i];
+              return GestureDetector(
+                onTap: () => context.push('/matches/${m.id}'),
+                child: Container(
+                  width: 230,
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.coverFor(m.id),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              m.clubName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${m.suggestionScore ?? 0}%',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        DateFormat('EEE d MMM · HH:mm', 'fr')
+                            .format(m.startsAt),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Niveau ${m.levelMin.toStringAsFixed(0)}-${m.levelMax.toStringAsFixed(0)} · '
+                        '${m.spotsLeft} place(s) · '
+                        '${m.pricePerPlayerMad.toStringAsFixed(0)} MAD',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

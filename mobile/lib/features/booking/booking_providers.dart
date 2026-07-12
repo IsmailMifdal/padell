@@ -24,3 +24,11 @@ final availabilityProvider = FutureProvider.autoDispose
 final myBookingsProvider = FutureProvider.autoDispose<List<Booking>>((ref) {
   return ref.watch(bookingRepositoryProvider).myBookings();
 });
+
+/// Suis-je inscrit en liste d'attente pour ce club/jour ?
+final waitlistStatusProvider =
+    FutureProvider.autoDispose.family<bool, AvailabilityArgs>((ref, args) {
+  return ref
+      .watch(bookingRepositoryProvider)
+      .waitlistStatus(args.clubId, args.day);
+});

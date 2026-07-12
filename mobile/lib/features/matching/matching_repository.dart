@@ -68,6 +68,47 @@ class MatchingRepository {
     await _dio.post<void>('/matches/$id/cancel');
   }
 
+  /// Suggestions « Pour toi » (score de compatibilité 0-100).
+  Future<List<PadelMatch>> suggestions({
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _dio.get<List<dynamic>>(
+      '/matches/suggestions',
+      queryParameters: {'lat': lat, 'lng': lng},
+    );
+    return res.data!
+        .cast<Map<String, dynamic>>()
+        .map(PadelMatch.fromJson)
+        .toList();
+  }
+
+  /// L'organisateur enregistre le score (2 vainqueurs + score affiché).
+  Future<void> submitScore(
+    String matchId, {
+    required List<String> winnerIds,
+    String? score,
+  }) async {
+    await _dio.post<void>('/matches/$matchId/score', data: {
+      'winnerIds': winnerIds,
+      if (score != null && score.isNotEmpty) 'score': score,
+    });
+  }
+
+  /// Notation des partenaires (1-5 par critère).
+  Future<void> ratePlayers(
+    String matchId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    await _dio.post<void>('/matches/$matchId/rate', data: {'items': items});
+  }
+
+  /// Ids des joueurs déjà notés par moi sur ce match.
+  Future<List<String>> myRatings(String matchId) async {
+    final res = await _dio.get<List<dynamic>>('/matches/$matchId/my-ratings');
+    return res.data!.cast<String>();
+  }
+
   Future<PadelMatch> create({
     required String courtId,
     required DateTime startsAt,

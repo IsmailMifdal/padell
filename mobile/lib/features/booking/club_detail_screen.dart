@@ -177,11 +177,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.event_busy_outlined,
-                    title: 'Complet ce jour-là',
-                    subtitle: 'Aucun créneau disponible.\nEssayez un autre jour.',
-                  );
+                  return _FullDayView(clubId: widget.club.id, day: _day);
                 }
                 return AbsorbPointer(
                   absorbing: _booking,
@@ -210,6 +206,73 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Jour complet : proposition d'inscription en liste d'attente.
+class _FullDayView extends ConsumerWidget {
+  const _FullDayView({required this.clubId, required this.day});
+  final String clubId;
+  final DateTime day;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final args = (clubId: clubId, day: day);
+    final waitlisted = ref.watch(waitlistStatusProvider(args)).valueOrNull;
+
+    Future<void> toggle() async {
+      final repo = ref.read(bookingRepositoryProvider);
+      try {
+        waitlisted == true
+            ? await repo.leaveWaitlist(clubId, day)
+            : await repo.joinWaitlist(clubId, day);
+        ref.invalidate(waitlistStatusProvider(args));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(waitlisted == true
+                  ? 'Alerte désactivée'
+                  : 'Vous serez alerté si un créneau se libère 🔔'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(apiErrorMessage(e))),
+          );
+        }
+      }
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const EmptyState(
+              icon: Icons.event_busy_outlined,
+              title: 'Complet ce jour-là',
+              subtitle: 'Aucun créneau disponible.\nEssayez un autre jour, ou :',
+            ),
+            const SizedBox(height: 4),
+            FilledButton.tonalIcon(
+              onPressed: waitlisted == null ? null : toggle,
+              icon: Icon(
+                waitlisted == true
+                    ? Icons.notifications_off_outlined
+                    : Icons.notifications_active_outlined,
+                size: 20,
+              ),
+              label: Text(waitlisted == true
+                  ? 'Ne plus m’alerter'
+                  : 'M’alerter si un créneau se libère'),
+            ),
+          ],
         ),
       ),
     );

@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { WaitlistService } from '../bookings/waitlist.service';
 import { ClubsService } from '../clubs/clubs.service';
 import {
   BlockSlotDto,
@@ -25,6 +26,7 @@ export class OwnerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clubs: ClubsService,
+    private readonly waitlist: WaitlistService,
   ) {}
 
   /** Calendrier du club : toutes les réservations actives sur la période. */
@@ -94,13 +96,63 @@ export class OwnerService {
     ) {
       throw new BadRequestException('Cette réservation ne peut plus être annulée');
     }
-    return this.prisma.booking.update({
+    const cancelled = await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: BookingStatus.CANCELLED,
         cancellationReason: reason ?? 'Annulée par le club',
       },
     });
+    await this.waitlist.notifyFreedSlot(clubId, booking.startsAt);
+    return cancelled;
+  }
+
+  /** Statistiques d'exploitation du club sur les N derniers jours. */
+  async stats(user: AuthUser, clubId: string, days = 30) {
+    await this.clubs.assertOwnership(user, clubId);
+    const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        court: { clubId },
+        startsAt: { gte: since },
+        source: { not: BookingSource.BLOCKED },
+      },
+      select: { status: true, priceMad: true, startsAt: true, source: true },
+    });
+
+    const active = bookings.filter(
+      (b) =>
+        b.status === BookingStatus.CONFIRMED ||
+        b.status === BookingStatus.COMPLETED,
+    );
+    const revenue = active.reduce((s, b) => s + Number(b.priceMad), 0);
+
+    // Répartition des réservations par heure de début (heures creuses/pleines)
+    const byHour: Record<number, number> = {};
+    for (const b of active) {
+      const h = b.startsAt.getHours();
+      byHour[h] = (byHour[h] ?? 0) + 1;
+    }
+
+    const cancelled = bookings.filter(
+      (b) => b.status === BookingStatus.CANCELLED,
+    ).length;
+
+    return {
+      days,
+      totalBookings: active.length,
+      cancelledBookings: cancelled,
+      revenueMad: Math.round(revenue * 100) / 100,
+      manualShare: active.length
+        ? Math.round(
+            (active.filter((b) => b.source === BookingSource.MANUAL).length /
+              active.length) *
+              100,
+          )
+        : 0,
+      byHour,
+    };
   }
 
   /** Check-in par scan du QR code à l'accueil du club. */

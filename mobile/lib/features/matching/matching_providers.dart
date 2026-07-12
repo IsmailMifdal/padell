@@ -31,3 +31,18 @@ final showMyMatchesProvider = StateProvider<bool>((ref) => false);
 final myMatchesProvider = FutureProvider.autoDispose<List<PadelMatch>>((ref) {
   return ref.watch(matchingRepositoryProvider).mine();
 });
+
+/// Suggestions « Pour toi » (score de compatibilité).
+final suggestionsProvider =
+    FutureProvider.autoDispose<List<PadelMatch>>((ref) async {
+  final center = await ref.watch(geoCenterProvider.future);
+  return ref
+      .watch(matchingRepositoryProvider)
+      .suggestions(lat: center.lat, lng: center.lng);
+});
+
+/// Joueurs que j'ai déjà notés sur un match.
+final myRatingsProvider =
+    FutureProvider.autoDispose.family<List<String>, String>((ref, matchId) {
+  return ref.watch(matchingRepositoryProvider).myRatings(matchId);
+});

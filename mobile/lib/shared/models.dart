@@ -58,6 +58,8 @@ class Club {
     this.ratingAvg,
     this.distanceM,
     this.paymentOnSiteAllowed = true,
+    this.latitude,
+    this.longitude,
   });
 
   final String id;
@@ -67,6 +69,8 @@ class Club {
   final double? ratingAvg;
   final double? distanceM;
   final bool paymentOnSiteAllowed;
+  final double? latitude;
+  final double? longitude;
 
   static double? _toDouble(dynamic v) =>
       v == null ? null : double.tryParse(v.toString());
@@ -81,6 +85,8 @@ class Club {
         paymentOnSiteAllowed:
             (j['paymentOnSiteAllowed'] ?? j['payment_on_site_allowed'] ?? true)
                 as bool,
+        latitude: _toDouble(j['latitude']),
+        longitude: _toDouble(j['longitude']),
       );
 }
 
@@ -166,6 +172,9 @@ class PadelMatch {
     this.creatorId,
     this.distanceM,
     this.players = const [],
+    this.winnerIds = const [],
+    this.scoreText,
+    this.suggestionScore,
   });
 
   final String id;
@@ -182,8 +191,16 @@ class PadelMatch {
   final double? distanceM;
   final List<MatchParticipant> players;
 
+  /// Vainqueurs et score affiché (match PLAYED).
+  final List<String> winnerIds;
+  final String? scoreText;
+
+  /// Score de compatibilité 0-100 (endpoint suggestions).
+  final int? suggestionScore;
+
   static const size = 4;
   int get spotsLeft => (size - acceptedCount).clamp(0, size);
+  DateTime get endsAt => startsAt.add(Duration(minutes: durationMin));
 
   static double _d(dynamic v) => double.tryParse(v.toString()) ?? 0;
 
@@ -209,6 +226,11 @@ class PadelMatch {
           ? null
           : double.tryParse(j['distanceM'].toString()),
       players: parsed,
+      winnerIds: (j['score'] is Map)
+          ? ((j['score']['winnerIds'] as List?)?.cast<String>() ?? const [])
+          : const [],
+      scoreText: (j['score'] is Map) ? j['score']['score'] as String? : null,
+      suggestionScore: (j['compatScore'] as num?)?.toInt(),
     );
   }
 }

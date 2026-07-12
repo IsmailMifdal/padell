@@ -18,6 +18,12 @@ final notificationsProvider =
   (ref) => ref.watch(notificationsRepositoryProvider).list(),
 );
 
+/// Nombre de notifications non lues (badge sur la navigation).
+final unreadCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final list = await ref.watch(notificationsProvider.future);
+  return list.where((n) => n.unread).length;
+});
+
 class AppNotification {
   AppNotification({
     required this.id,

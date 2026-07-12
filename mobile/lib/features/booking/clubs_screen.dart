@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/api_client.dart';
+import '../../core/location_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
+import '../profile/stats_favorites.dart';
 import 'booking_providers.dart';
+
+/// Affichage carte (true) ou liste (false).
+final clubsMapViewProvider = StateProvider<bool>((ref) => false);
+
+/// Filtre : ne montrer que mes clubs favoris.
+final favoritesOnlyProvider = StateProvider<bool>((ref) => false);
 
 class ClubsScreen extends ConsumerStatefulWidget {
   const ClubsScreen({super.key});
@@ -31,6 +41,10 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
     final clubs = ref.watch(clubsProvider);
     final user = ref.watch(authControllerProvider).user;
     final firstName = user?.firstName ?? '';
+    final mapView = ref.watch(clubsMapViewProvider);
+    final favoritesOnly = ref.watch(favoritesOnlyProvider);
+    final favoriteIds =
+        ref.watch(favoriteClubIdsProvider).valueOrNull ?? const <String>{};
 
     return Column(
       children: [
@@ -44,6 +58,44 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
             ref.read(clubSearchProvider.notifier).state = null;
           },
         ),
+        // Bascule liste/carte + filtre favoris
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: PageContainer(
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        icon: Icon(Icons.list, size: 17),
+                        label: Text('Liste'),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        icon: Icon(Icons.map_outlined, size: 17),
+                        label: Text('Carte'),
+                      ),
+                    ],
+                    selected: {mapView},
+                    onSelectionChanged: (s) => ref
+                        .read(clubsMapViewProvider.notifier)
+                        .state = s.first,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilterChip(
+                  label: const Text('❤ Favoris'),
+                  selected: favoritesOnly,
+                  selectedColor: AppColors.danger.withValues(alpha: 0.15),
+                  onSelected: (v) =>
+                      ref.read(favoritesOnlyProvider.notifier).state = v,
+                ),
+              ],
+            ),
+          ),
+        ),
         Expanded(
           child: clubs.when(
             loading: () => const CenteredLoader(),
@@ -51,13 +103,25 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
               message: apiErrorMessage(e),
               onRetry: () => ref.invalidate(clubsProvider),
             ),
-            data: (list) {
+            data: (all) {
+              final list = favoritesOnly
+                  ? all.where((c) => favoriteIds.contains(c.id)).toList()
+                  : all;
               if (list.isEmpty) {
-                return const EmptyState(
-                  icon: Icons.location_off_outlined,
-                  title: 'Aucun club trouvé',
-                  subtitle: 'Essayez une autre ville ou effacez le filtre.',
+                return EmptyState(
+                  icon: favoritesOnly
+                      ? Icons.favorite_border
+                      : Icons.location_off_outlined,
+                  title: favoritesOnly
+                      ? 'Aucun club favori'
+                      : 'Aucun club trouvé',
+                  subtitle: favoritesOnly
+                      ? 'Touchez le cœur d’un club pour l’ajouter ici.'
+                      : 'Essayez une autre ville ou effacez le filtre.',
                 );
+              }
+              if (mapView) {
+                return _ClubsMap(clubs: list);
               }
               final title = Padding(
                 padding: const EdgeInsets.only(bottom: 14),
@@ -214,13 +278,101 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _ClubCard extends StatelessWidget {
+/// Carte OpenStreetMap des clubs (sans clé API).
+class _ClubsMap extends ConsumerWidget {
+  const _ClubsMap({required this.clubs});
+  final List<Club> clubs;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final center = ref.watch(geoCenterProvider).valueOrNull;
+    final located = clubs
+        .where((c) => c.latitude != null && c.longitude != null)
+        .toList();
+    final mapCenter = located.isNotEmpty
+        ? LatLng(located.first.latitude!, located.first.longitude!)
+        : LatLng(center?.lat ?? 33.5899, center?.lng ?? -7.6039);
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: PageContainer(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: FlutterMap(
+            options: MapOptions(initialCenter: mapCenter, initialZoom: 12),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'ma.padel.padel_mobile',
+              ),
+              MarkerLayer(
+                markers: [
+                  if (center != null && center.isReal)
+                    Marker(
+                      point: LatLng(center.lat, center.lng),
+                      width: 24,
+                      height: 24,
+                      child: const Icon(Icons.my_location,
+                          color: AppColors.info, size: 22),
+                    ),
+                  ...located.map(
+                    (c) => Marker(
+                      point: LatLng(c.latitude!, c.longitude!),
+                      width: 46,
+                      height: 46,
+                      child: GestureDetector(
+                        onTap: () =>
+                            context.push('/clubs/${c.id}', extra: c),
+                        child: Tooltip(
+                          message: c.name,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: AppColors.heroGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                              boxShadow: softShadow(0.25),
+                            ),
+                            child: const Icon(Icons.sports_tennis,
+                                color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClubCard extends ConsumerWidget {
   const _ClubCard({required this.club});
   final Club club;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final gradient = AppColors.coverFor(club.id);
+    final favoriteIds =
+        ref.watch(favoriteClubIdsProvider).valueOrNull ?? const <String>{};
+    final isFavorite = favoriteIds.contains(club.id);
+
+    Future<void> toggleFavorite() async {
+      final repo = ref.read(favoritesRepositoryProvider);
+      try {
+        isFavorite ? await repo.remove(club.id) : await repo.add(club.id);
+        ref.invalidate(favoriteClubIdsProvider);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(apiErrorMessage(e))),
+          );
+        }
+      }
+    }
     return SoftCard(
       padding: EdgeInsets.zero,
       onTap: () => context.push('/clubs/${club.id}', extra: club),
@@ -277,30 +429,57 @@ class _ClubCard extends StatelessWidget {
                               ],
                             ),
                           ),
-                          if (club.ratingAvg != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star_rounded,
-                                      size: 15, color: AppColors.amber),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    club.ratingAvg!.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (club.ratingAvg != null)
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
-                                ],
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded,
+                                          size: 15, color: AppColors.amber),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        club.ratingAvg!.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              // Cœur favori
+                              GestureDetector(
+                                onTap: toggleFavorite,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    size: 17,
+                                    color: isFavorite
+                                        ? AppColors.danger
+                                        : AppColors.slate,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
+                          ),
                         ],
                       ),
                     ],

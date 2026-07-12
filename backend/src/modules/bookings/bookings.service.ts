@@ -21,6 +21,7 @@ import { LockService } from '../../infra/redis/lock.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { WaitlistService } from './waitlist.service';
 
 // Délai pour finaliser un paiement en ligne avant libération du créneau
 export const PAYMENT_WINDOW_MINUTES = 10;
@@ -32,6 +33,7 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly locks: LockService,
     private readonly payments: PaymentsService,
+    private readonly waitlist: WaitlistService,
   ) {}
 
   async create(user: AuthUser, dto: CreateBookingDto): Promise<Booking> {
@@ -138,6 +140,8 @@ export class BookingsService {
     });
     // Remboursement éventuel selon la politique d'annulation du club
     await this.payments.refundForCancelledBooking(id);
+    // Liste d'attente : préviens les joueurs qui guettent ce club/jour
+    await this.waitlist.notifyFreedSlot(booking.court.clubId, booking.startsAt);
     return cancelled;
   }
 

@@ -20,6 +20,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CreateMatchDto } from './dto/create-match.dto';
+import { RatePlayersDto, SubmitScoreDto } from './dto/score-rating.dto';
 import { SearchMatchesQuery } from './dto/search-matches.query';
 
 export const MATCH_SIZE = 4;
@@ -206,6 +207,74 @@ export class MatchesService {
     });
   }
 
+  // ------------------------------------------------------------- suggestions
+
+  /**
+   * « Pour toi » (docs/02 §5.3) :
+   * score = 0.40×compatibilité niveau + 0.25×proximité
+   *       + 0.20×disponibilité déclarée + 0.15×affinité (déjà joué ensemble).
+   */
+  async suggestions(user: AuthUser, lat: number, lng: number) {
+    const radiusKm = 50;
+    const results = await this.search({ lat, lng, radiusKm, limit: 50 });
+
+    const profile = await this.prisma.playerProfile.findUnique({
+      where: { userId: user.userId },
+      include: { availabilities: true },
+    });
+    const myLevel = Number(profile?.level ?? 2);
+
+    // Joueurs déjà croisés (matchs joués/confirmés communs)
+    const pastMates = await this.prisma.matchPlayer.findMany({
+      where: {
+        status: MatchPlayerStatus.ACCEPTED,
+        match: {
+          status: { in: [MatchStatus.PLAYED, MatchStatus.CONFIRMED] },
+          players: {
+            some: { playerId: user.userId, status: MatchPlayerStatus.ACCEPTED },
+          },
+        },
+        NOT: { playerId: user.userId },
+      },
+      select: { playerId: true },
+    });
+    const mates = new Set(pastMates.map((m) => m.playerId));
+
+    const scored = results.items
+      // Pas de suggestion sur ses propres matchs ni ceux qu'on a rejoints
+      .filter(
+        (m) =>
+          m.creatorId !== user.userId &&
+          !m.players.some((p: any) => p.player?.id === user.userId),
+      )
+      .map((m) => {
+        const mid = (Number(m.levelMin) + Number(m.levelMax)) / 2;
+        const levelScore = Math.max(0, 1 - Math.abs(myLevel - mid) / 2);
+        const proximity = 1 - (m.distanceM ?? 0) / (radiusKm * 1000);
+
+        const day = m.startsAt.getDay() === 0 ? 7 : m.startsAt.getDay();
+        const minutes = m.startsAt.getHours() * 60 + m.startsAt.getMinutes();
+        const available = (profile?.availabilities ?? []).some(
+          (a) =>
+            a.dayOfWeek === day && a.startMin <= minutes && a.endMin >= minutes,
+        );
+        const affinity = m.players.some((p: any) => mates.has(p.player?.id))
+          ? 1
+          : 0;
+
+        const compat =
+          0.4 * levelScore +
+          0.25 * proximity +
+          0.2 * (available ? 1 : 0.3) +
+          0.15 * affinity;
+        return { ...m, compatScore: Math.round(compat * 100) };
+      })
+      .sort((a, b) => b.compatScore - a.compatScore)
+      .slice(0, 10);
+
+    return scored;
+  }
+
   // --------------------------------------------------------- rejoindre/gérer
 
   async join(user: AuthUser, matchId: string) {
@@ -381,6 +450,151 @@ export class MatchesService {
 
     await this.cancelMatchInternal(match.id, match.bookingId, 'Annulé par le créateur');
     return { cancelled: true };
+  }
+
+  // ------------------------------------------------------------- score & ELO
+
+  /**
+   * Saisie du score par l'organisateur une fois le match commencé/terminé :
+   * statut PLAYED + mise à jour ELO et niveau des 4 joueurs.
+   */
+  async submitScore(user: AuthUser, matchId: string, dto: SubmitScoreDto) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        players: { where: { status: MatchPlayerStatus.ACCEPTED } },
+      },
+    });
+    if (!match) throw new NotFoundException('Match introuvable');
+    if (match.creatorId !== user.userId) {
+      throw new ForbiddenException("Seul l'organisateur peut saisir le score");
+    }
+    if (match.status === MatchStatus.PLAYED) {
+      throw new BadRequestException('Le score de ce match est déjà enregistré');
+    }
+    if (match.status === MatchStatus.CANCELLED) {
+      throw new BadRequestException('Ce match a été annulé');
+    }
+    if (match.startsAt > new Date()) {
+      throw new BadRequestException("Le match n'a pas encore commencé");
+    }
+
+    const playerIds = match.players.map((p) => p.playerId);
+    if (playerIds.length !== MATCH_SIZE) {
+      throw new BadRequestException('Le match doit avoir 4 joueurs acceptés');
+    }
+    const winners = [...new Set(dto.winnerIds)];
+    if (winners.length !== 2 || !winners.every((w) => playerIds.includes(w))) {
+      throw new BadRequestException(
+        'winnerIds : exactement 2 joueurs distincts du match',
+      );
+    }
+    const losers = playerIds.filter((p) => !winners.includes(p));
+
+    await this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        status: MatchStatus.PLAYED,
+        score: { winnerIds: winners, score: dto.score ?? null },
+      },
+    });
+    await this.applyElo(winners, losers);
+
+    await this.notifications.notifyMany(
+      playerIds.filter((p) => p !== user.userId),
+      'MATCH_CONFIRMED',
+      'Score enregistré 🏆',
+      'Le score du match est saisi — notez vos partenaires et suivez votre niveau',
+      { matchId },
+    );
+    return { played: true };
+  }
+
+  /**
+   * ELO adapté padel (docs/02 §5.4) : rating moyen d'équipe, K=32
+   * (16 après 30 matchs), niveau 1.0-7.0 projeté depuis l'ELO.
+   */
+  private async applyElo(winners: string[], losers: string[]) {
+    const profiles = await this.prisma.playerProfile.findMany({
+      where: { userId: { in: [...winners, ...losers] } },
+    });
+    const byId = new Map(profiles.map((p) => [p.userId, p]));
+    const avg = (ids: string[]) =>
+      ids.reduce((s, id) => s + (byId.get(id)?.eloRating ?? 1000), 0) /
+      ids.length;
+
+    const winAvg = avg(winners);
+    const loseAvg = avg(losers);
+    const expectedWin = 1 / (1 + Math.pow(10, (loseAvg - winAvg) / 400));
+
+    for (const id of [...winners, ...losers]) {
+      const profile = byId.get(id);
+      if (!profile) continue;
+      const isWinner = winners.includes(id);
+      const k = profile.matchesPlayed >= 30 ? 16 : 32;
+      const delta = Math.round(k * ((isWinner ? 1 : 0) - expectedWin));
+      const newElo = Math.max(400, profile.eloRating + delta);
+      // Projection niveau : elo 800 → 1.0 · 1000 → 2.0 · 2000 → 7.0
+      const level = Math.min(7, Math.max(1, (newElo - 600) / 200));
+      await this.prisma.playerProfile.update({
+        where: { userId: id },
+        data: {
+          eloRating: newElo,
+          matchesPlayed: { increment: 1 },
+          level: Math.round(level * 10) / 10,
+        },
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------- notation
+
+  /** Notation des partenaires (match joué uniquement, une fois par joueur). */
+  async ratePlayers(user: AuthUser, matchId: string, dto: RatePlayersDto) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: { players: { where: { status: MatchPlayerStatus.ACCEPTED } } },
+    });
+    if (!match) throw new NotFoundException('Match introuvable');
+    if (match.status !== MatchStatus.PLAYED) {
+      throw new BadRequestException(
+        'Les joueurs se notent une fois le score enregistré',
+      );
+    }
+    const playerIds = match.players.map((p) => p.playerId);
+    if (!playerIds.includes(user.userId)) {
+      throw new ForbiddenException('Vous ne participez pas à ce match');
+    }
+    for (const item of dto.items) {
+      if (item.playerId === user.userId) {
+        throw new BadRequestException('Impossible de se noter soi-même');
+      }
+      if (!playerIds.includes(item.playerId)) {
+        throw new BadRequestException('Joueur hors du match');
+      }
+    }
+
+    await this.prisma.rating.createMany({
+      data: dto.items.map((i) => ({
+        matchId,
+        raterId: user.userId,
+        ratedId: i.playerId,
+        punctuality: i.punctuality,
+        fairplay: i.fairplay,
+        levelAccuracy: i.levelAccuracy,
+      })),
+      skipDuplicates: true,
+    });
+    return { rated: dto.items.length };
+  }
+
+  /** Ids des joueurs que j'ai déjà notés sur ce match (pour masquer l'UI). */
+  async myRatings(user: AuthUser, matchId: string) {
+    const ratings = await this.prisma.rating.findMany({
+      where: { matchId, raterId: user.userId },
+      select: { ratedId: true },
+    });
+    return ratings.map((r) => r.ratedId);
   }
 
   // --------------------------------------------------------------------- job

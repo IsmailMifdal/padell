@@ -16,6 +16,7 @@ import 'features/notifications/notifications_screen.dart';
 import 'features/owner/owner_repository.dart';
 import 'features/owner/owner_screen.dart';
 import 'features/profile/edit_profile_screen.dart';
+import 'features/profile/stats_screen.dart';
 import 'shared/models.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -51,6 +52,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/edit',
         builder: (_, __) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/stats',
+        builder: (_, __) => const StatsScreen(),
       ),
       GoRoute(
         path: '/notifications',

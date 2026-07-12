@@ -58,4 +58,28 @@ class BookingRepository {
   Future<void> cancel(String bookingId) async {
     await _dio.post<void>('/bookings/$bookingId/cancel', data: {});
   }
+
+  // ---------------------------------------------------------- liste d'attente
+
+  Future<bool> waitlistStatus(String clubId, DateTime day) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/clubs/$clubId/waitlist',
+      queryParameters: {'date': _dayFmt.format(day)},
+    );
+    return res.data!['waitlisted'] == true;
+  }
+
+  Future<void> joinWaitlist(String clubId, DateTime day) async {
+    await _dio.post<void>(
+      '/clubs/$clubId/waitlist',
+      queryParameters: {'date': _dayFmt.format(day)},
+    );
+  }
+
+  Future<void> leaveWaitlist(String clubId, DateTime day) async {
+    await _dio.post<void>(
+      '/clubs/$clubId/waitlist/leave',
+      queryParameters: {'date': _dayFmt.format(day)},
+    );
+  }
 }

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../auth/auth_controller.dart';
 import '../matching/matches_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../profile/profile_repository.dart';
 import 'clubs_screen.dart';
 import 'my_bookings_screen.dart';
@@ -29,6 +31,24 @@ class HomeScreen extends ConsumerWidget {
     final index = ref.watch(homeTabProvider);
     final body = IndexedStack(index: index, children: _tabs);
     void select(int i) => ref.read(homeTabProvider.notifier).state = i;
+    final t = T.of(ref.watch(localeProvider));
+
+    // Badge de notifications non lues sur l'onglet Profil
+    final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
+    final profileIcon = unread > 0
+        ? Badge(
+            label: Text('$unread'),
+            backgroundColor: AppColors.danger,
+            child: const Icon(Icons.person_outline),
+          )
+        : const Icon(Icons.person_outline);
+    final profileIconSelected = unread > 0
+        ? Badge(
+            label: Text('$unread'),
+            backgroundColor: AppColors.danger,
+            child: const Icon(Icons.person),
+          )
+        : const Icon(Icons.person);
 
     // Grand écran (web/desktop) : rail de navigation latéral
     if (isWide(context)) {
@@ -46,26 +66,26 @@ class HomeScreen extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 18),
                 child: Text('🎾', style: TextStyle(fontSize: 30)),
               ),
-              destinations: const [
+              destinations: [
                 NavigationRailDestination(
-                  icon: Icon(Icons.search_outlined),
-                  selectedIcon: Icon(Icons.search),
-                  label: Text('Clubs'),
+                  icon: const Icon(Icons.search_outlined),
+                  selectedIcon: const Icon(Icons.search),
+                  label: Text(t['clubs']),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.groups_2_outlined),
-                  selectedIcon: Icon(Icons.groups_2),
-                  label: Text('Matchs'),
+                  icon: const Icon(Icons.groups_2_outlined),
+                  selectedIcon: const Icon(Icons.groups_2),
+                  label: Text(t['matches']),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.confirmation_number_outlined),
-                  selectedIcon: Icon(Icons.confirmation_number),
-                  label: Text('Réservations'),
+                  icon: const Icon(Icons.confirmation_number_outlined),
+                  selectedIcon: const Icon(Icons.confirmation_number),
+                  label: Text(t['bookingsLong']),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: Text('Profil'),
+                  icon: profileIcon,
+                  selectedIcon: profileIconSelected,
+                  label: Text(t['profile']),
                 ),
               ],
             ),
@@ -82,26 +102,26 @@ class HomeScreen extends ConsumerWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: select,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Clubs',
+            icon: const Icon(Icons.search_outlined),
+            selectedIcon: const Icon(Icons.search),
+            label: t['clubs'],
           ),
           NavigationDestination(
-            icon: Icon(Icons.groups_2_outlined),
-            selectedIcon: Icon(Icons.groups_2),
-            label: 'Matchs',
+            icon: const Icon(Icons.groups_2_outlined),
+            selectedIcon: const Icon(Icons.groups_2),
+            label: t['matches'],
           ),
           NavigationDestination(
-            icon: Icon(Icons.confirmation_number_outlined),
-            selectedIcon: Icon(Icons.confirmation_number),
-            label: 'Résas',
+            icon: const Icon(Icons.confirmation_number_outlined),
+            selectedIcon: const Icon(Icons.confirmation_number),
+            label: t['bookings'],
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
+            icon: profileIcon,
+            selectedIcon: profileIconSelected,
+            label: t['profile'],
           ),
         ],
       ),
@@ -142,6 +162,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = T.of(ref.watch(localeProvider));
     final me = ref.watch(meProvider).valueOrNull;
     final fallback = ref.watch(authControllerProvider).user;
     final firstName = me?.firstName ?? fallback?.firstName ?? '';
@@ -236,28 +257,38 @@ class ProfileScreen extends ConsumerWidget {
                   if (me?.isOwner == true)
                     _ProfileTile(
                       icon: Icons.stadium_outlined,
-                      label: 'Espace club',
+                      label: t['clubSpace'],
                       onTap: () => context.push('/owner'),
                     ),
                   _ProfileTile(
                     icon: Icons.event_available_outlined,
-                    label: 'Mes réservations',
+                    label: t['myBookings'],
                     onTap: () =>
                         ref.read(homeTabProvider.notifier).state = 2,
                   ),
                   _ProfileTile(
                     icon: Icons.sports_tennis_outlined,
-                    label: 'Mon profil de jeu',
+                    label: t['myGameProfile'],
                     onTap: () => context.push('/profile/edit'),
                   ),
                   _ProfileTile(
+                    icon: Icons.bar_chart_rounded,
+                    label: t['myStats'],
+                    onTap: () => context.push('/profile/stats'),
+                  ),
+                  _ProfileTile(
                     icon: Icons.notifications_none_rounded,
-                    label: 'Notifications',
+                    label: t['notifications'],
                     onTap: () => context.push('/notifications'),
                   ),
                   _ProfileTile(
+                    icon: Icons.translate_rounded,
+                    label: t['language'],
+                    onTap: () => _pickLanguage(context, ref),
+                  ),
+                  _ProfileTile(
                     icon: Icons.help_outline_rounded,
-                    label: 'Aide & support',
+                    label: t['help'],
                     onTap: () => showDialog<void>(
                       context: context,
                       builder: (ctx) => AlertDialog(
@@ -283,7 +314,7 @@ class ProfileScreen extends ConsumerWidget {
                     onPressed: () =>
                         ref.read(authControllerProvider.notifier).logout(),
                     icon: const Icon(Icons.logout, size: 20),
-                    label: const Text('Se déconnecter'),
+                    label: Text(t['logout']),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
                       foregroundColor: AppColors.danger,
@@ -302,6 +333,37 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Sélecteur de langue (fr / ar RTL / en).
+  Future<void> _pickLanguage(BuildContext context, WidgetRef ref) async {
+    const names = {'fr': 'Français', 'ar': 'العربية', 'en': 'English'};
+    final current = ref.read(localeProvider).languageCode;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Langue · اللغة · Language'),
+        children: names.entries
+            .map(
+              (e) => ListTile(
+                leading: Icon(
+                  e.key == current
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: e.key == current ? AppColors.primary : AppColors.slate,
+                ),
+                title: Text(e.value),
+                onTap: () => Navigator.pop(ctx, e.key),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (choice != null) {
+      await ref.read(localeProvider.notifier).set(Locale(choice));
+    }
   }
 
   Widget _stat(String label, String value) => Container(

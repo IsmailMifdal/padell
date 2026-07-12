@@ -5,6 +5,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Put,
 } from '@nestjs/common';
@@ -35,6 +37,32 @@ export class UsersController {
   @Put('me/availabilities')
   setAvailabilities(@CurrentUser() user: AuthUser, @Body() dto: SetAvailabilitiesDto) {
     return this.users.setAvailabilities(user.userId, dto);
+  }
+
+  @Get('me/stats')
+  stats(@CurrentUser() user: AuthUser) {
+    return this.users.stats(user.userId);
+  }
+
+  @Get('me/favorites/clubs')
+  listFavorites(@CurrentUser() user: AuthUser) {
+    return this.users.listFavoriteClubs(user.userId);
+  }
+
+  @Put('me/favorites/clubs/:clubId')
+  addFavorite(
+    @CurrentUser() user: AuthUser,
+    @Param('clubId', ParseUUIDPipe) clubId: string,
+  ) {
+    return this.users.addFavoriteClub(user.userId, clubId);
+  }
+
+  @Delete('me/favorites/clubs/:clubId')
+  removeFavorite(
+    @CurrentUser() user: AuthUser,
+    @Param('clubId', ParseUUIDPipe) clubId: string,
+  ) {
+    return this.users.removeFavoriteClub(user.userId, clubId);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)

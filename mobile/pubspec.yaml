@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   # Gestion d'état (docs/02 §2.1)
   flutter_riverpod: ^2.5.1
@@ -18,13 +20,18 @@ dependencies:
   dio: ^5.5.0
   # Stockage sécurisé des tokens
   flutter_secure_storage: ^9.2.2
-  intl: ^0.19.0
+  intl: ^0.20.2
   # Typographie premium
   google_fonts: ^6.2.1
   # Géolocalisation (matchs autour du joueur)
   geolocator: ^13.0.1
   # Chat de match temps réel (gateway /chat du backend)
   socket_io_client: ^3.1.2
+  # Carte interactive des clubs (OpenStreetMap, sans clé API)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  # Partage de match (WhatsApp / Web Share API)
+  share_plus: ^10.1.2
 
 dev_dependencies:
   flutter_test:

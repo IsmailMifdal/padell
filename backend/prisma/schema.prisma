@@ -73,6 +73,10 @@ model User {
   reportsMade         Report[]        @relation("reportsMade")
   reportsHandled      Report[]        @relation("reportsHandled")
   adminAuditLogs      AdminAuditLog[]
+  ratingsGiven        Rating[]        @relation("ratingsGiven")
+  ratingsReceived     Rating[]        @relation("ratingsReceived")
+  favoriteClubs       FavoriteClub[]
+  waitlistEntries     WaitlistEntry[]
 
   @@map("users")
 }
@@ -153,6 +157,8 @@ model Club {
   openingHours         OpeningHour[]
   payouts              Payout[]
   matches              Match[]
+  favoritedBy          FavoriteClub[]
+  waitlistEntries      WaitlistEntry[]
 
   @@index([ownerId])
   @@index([status, city])
@@ -374,6 +380,7 @@ model Match {
   club               Club            @relation(fields: [clubId], references: [id])
   players            MatchPlayer[]
   chatMessages       ChatMessage[]
+  ratings            Rating[]
 
   @@index([status, startsAt])
   @@index([clubId, startsAt])
@@ -479,6 +486,53 @@ model AdminAuditLog {
 
   @@index([adminId, createdAt])
   @@map("admin_audit_log")
+}
+
+// -------------------------------------------------------------- Post-MVP V1.1
+
+// Notation des partenaires après un match joué (alimente la confiance niveau)
+model Rating {
+  id            String   @id @default(uuid())
+  matchId       String   @map("match_id")
+  raterId       String   @map("rater_id")
+  ratedId       String   @map("rated_id")
+  punctuality   Int
+  fairplay      Int
+  levelAccuracy Int      @map("level_accuracy")
+  createdAt     DateTime @default(now()) @map("created_at")
+  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  rater         User     @relation("ratingsGiven", fields: [raterId], references: [id])
+  rated         User     @relation("ratingsReceived", fields: [ratedId], references: [id])
+
+  @@unique([matchId, raterId, ratedId])
+  @@map("ratings")
+}
+
+// Clubs favoris d'un joueur
+model FavoriteClub {
+  userId    String   @map("user_id")
+  clubId    String   @map("club_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([userId, clubId])
+  @@map("favorite_clubs")
+}
+
+// Liste d'attente : alerte si un créneau se libère (club + jour)
+model WaitlistEntry {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  clubId    String   @map("club_id")
+  date      DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId, date])
+  @@index([clubId, date])
+  @@map("waitlist_entries")
 }
 
 model OtpCode {

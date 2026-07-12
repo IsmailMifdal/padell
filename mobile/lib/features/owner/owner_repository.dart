@@ -101,6 +101,40 @@ class OwnerBooking {
   }
 }
 
+class OwnerStats {
+  OwnerStats({
+    required this.days,
+    required this.totalBookings,
+    required this.cancelledBookings,
+    required this.revenueMad,
+    required this.manualShare,
+    required this.byHour,
+  });
+
+  final int days;
+  final int totalBookings;
+  final int cancelledBookings;
+  final double revenueMad;
+  final int manualShare;
+  final Map<int, int> byHour;
+
+  factory OwnerStats.fromJson(Map<String, dynamic> j) => OwnerStats(
+        days: (j['days'] as num?)?.toInt() ?? 30,
+        totalBookings: (j['totalBookings'] as num?)?.toInt() ?? 0,
+        cancelledBookings: (j['cancelledBookings'] as num?)?.toInt() ?? 0,
+        revenueMad: double.tryParse(j['revenueMad'].toString()) ?? 0,
+        manualShare: (j['manualShare'] as num?)?.toInt() ?? 0,
+        byHour: ((j['byHour'] as Map?) ?? {}).map(
+          (k, v) => MapEntry(int.parse(k.toString()), (v as num).toInt()),
+        ),
+      );
+}
+
+final ownerStatsProvider =
+    FutureProvider.autoDispose.family<OwnerStats, String>((ref, clubId) {
+  return ref.watch(ownerRepositoryProvider).stats(clubId);
+});
+
 class OwnerRepository {
   OwnerRepository(this._dio);
   final Dio _dio;
@@ -166,6 +200,13 @@ class OwnerRepository {
       '/owner/clubs/$clubId/bookings/$bookingId/cancel',
       data: {'reason': 'Annulée par le club'},
     );
+  }
+
+  /// Statistiques d'exploitation du club (30 derniers jours).
+  Future<OwnerStats> stats(String clubId) async {
+    final res = await _dio
+        .get<Map<String, dynamic>>('/owner/clubs/$clubId/stats');
+    return OwnerStats.fromJson(res.data!);
   }
 
   /// Check-in par code QR : retourne le nom du terrain confirmé.

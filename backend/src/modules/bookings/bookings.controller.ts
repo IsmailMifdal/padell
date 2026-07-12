@@ -13,6 +13,7 @@ import { AvailabilityQuery } from './dto/availability.query';
 import { AvailabilityService } from './availability.service';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { WaitlistService } from './waitlist.service';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 class CancelBookingDto {
@@ -27,6 +28,7 @@ export class BookingsController {
   constructor(
     private readonly bookings: BookingsService,
     private readonly availability: AvailabilityService,
+    private readonly waitlist: WaitlistService,
   ) {}
 
   /** Grille des créneaux disponibles d'un club pour un jour donné. */
@@ -42,6 +44,34 @@ export class BookingsController {
   @Post('bookings')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBookingDto) {
     return this.bookings.create(user, dto);
+  }
+
+  // Liste d'attente : alerte quand un créneau se libère sur club + jour
+  @Get('clubs/:id/waitlist')
+  waitlistStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AvailabilityQuery,
+  ) {
+    return this.waitlist.status(user.userId, id, query.date);
+  }
+
+  @Post('clubs/:id/waitlist')
+  joinWaitlist(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AvailabilityQuery,
+  ) {
+    return this.waitlist.join(user.userId, id, query.date);
+  }
+
+  @Post('clubs/:id/waitlist/leave')
+  leaveWaitlist(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: AvailabilityQuery,
+  ) {
+    return this.waitlist.leave(user.userId, id, query.date);
   }
 
   @Get('bookings/mine')
