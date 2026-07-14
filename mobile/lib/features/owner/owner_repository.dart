@@ -21,13 +21,73 @@ final ownerCalendarProvider = FutureProvider.autoDispose
   return ref.watch(ownerRepositoryProvider).calendar(args.clubId, args.day);
 });
 
+class PricingRule {
+  PricingRule({
+    required this.id,
+    required this.dayOfWeek,
+    required this.startMin,
+    required this.endMin,
+    required this.durationMin,
+    required this.priceMad,
+  });
+
+  final String id;
+  final int dayOfWeek;
+  final int startMin;
+  final int endMin;
+  final int durationMin;
+  final double priceMad;
+
+  factory PricingRule.fromJson(Map<String, dynamic> j) => PricingRule(
+        id: j['id'] as String,
+        dayOfWeek: (j['dayOfWeek'] as num).toInt(),
+        startMin: (j['startMin'] as num).toInt(),
+        endMin: (j['endMin'] as num).toInt(),
+        durationMin: (j['durationMin'] as num).toInt(),
+        priceMad: double.tryParse(j['priceMad'].toString()) ?? 0,
+      );
+}
+
 class OwnerCourt {
-  OwnerCourt({required this.id, required this.name});
+  OwnerCourt({
+    required this.id,
+    required this.name,
+    this.type = 'OUTDOOR',
+    this.rules = const [],
+  });
+
   final String id;
   final String name;
+  final String type;
+  final List<PricingRule> rules;
 
-  factory OwnerCourt.fromJson(Map<String, dynamic> j) =>
-      OwnerCourt(id: j['id'] as String, name: (j['name'] ?? '') as String);
+  factory OwnerCourt.fromJson(Map<String, dynamic> j) => OwnerCourt(
+        id: j['id'] as String,
+        name: (j['name'] ?? '') as String,
+        type: (j['type'] ?? 'OUTDOOR') as String,
+        rules: ((j['pricingRules'] as List?) ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map(PricingRule.fromJson)
+            .toList(),
+      );
+}
+
+class OpeningHour {
+  OpeningHour({
+    required this.dayOfWeek,
+    required this.openMin,
+    required this.closeMin,
+  });
+
+  final int dayOfWeek;
+  final int openMin;
+  final int closeMin;
+
+  factory OpeningHour.fromJson(Map<String, dynamic> j) => OpeningHour(
+        dayOfWeek: (j['dayOfWeek'] as num).toInt(),
+        openMin: (j['openMin'] as num).toInt(),
+        closeMin: (j['closeMin'] as num).toInt(),
+      );
 }
 
 class OwnerClub {
@@ -37,6 +97,7 @@ class OwnerClub {
     required this.city,
     required this.status,
     required this.courts,
+    this.openingHours = const [],
   });
 
   final String id;
@@ -44,6 +105,7 @@ class OwnerClub {
   final String city;
   final String status;
   final List<OwnerCourt> courts;
+  final List<OpeningHour> openingHours;
 
   factory OwnerClub.fromJson(Map<String, dynamic> j) => OwnerClub(
         id: j['id'] as String,
@@ -53,6 +115,10 @@ class OwnerClub {
         courts: ((j['courts'] as List?) ?? const [])
             .cast<Map<String, dynamic>>()
             .map(OwnerCourt.fromJson)
+            .toList(),
+        openingHours: ((j['openingHours'] as List?) ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map(OpeningHour.fromJson)
             .toList(),
       );
 }
@@ -200,6 +266,77 @@ class OwnerRepository {
       '/owner/clubs/$clubId/bookings/$bookingId/cancel',
       data: {'reason': 'Annulée par le club'},
     );
+  }
+
+  // ------------------------------------------------- création & configuration
+
+  /// Dépose une demande de club (statut PENDING jusqu'à validation admin).
+  Future<OwnerClub> createClub({
+    required String name,
+    required String address,
+    required String city,
+    required double latitude,
+    required double longitude,
+    String? description,
+    String? phone,
+    List<String> amenities = const [],
+    bool paymentOnSiteAllowed = true,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>('/clubs', data: {
+      'name': name,
+      'address': address,
+      'city': city,
+      'latitude': latitude,
+      'longitude': longitude,
+      if (description != null && description.isNotEmpty)
+        'description': description,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'amenities': amenities,
+      'paymentOnSiteAllowed': paymentOnSiteAllowed,
+    });
+    return OwnerClub.fromJson(res.data!);
+  }
+
+  Future<void> addCourt(String clubId,
+      {required String name, required String type}) async {
+    await _dio.post<void>('/clubs/$clubId/courts',
+        data: {'name': name, 'type': type});
+  }
+
+  /// Remplace l'intégralité des horaires (une entrée par jour ouvert).
+  Future<void> setOpeningHours(
+      String clubId, List<OpeningHour> hours) async {
+    await _dio.put<void>('/clubs/$clubId/opening-hours', data: {
+      'hours': hours
+          .map((h) => {
+                'dayOfWeek': h.dayOfWeek,
+                'openMin': h.openMin,
+                'closeMin': h.closeMin,
+              })
+          .toList(),
+    });
+  }
+
+  Future<void> addPricingRule(
+    String clubId,
+    String courtId, {
+    required int dayOfWeek,
+    required int startMin,
+    required int endMin,
+    required int durationMin,
+    required double priceMad,
+  }) async {
+    await _dio.post<void>('/clubs/$clubId/courts/$courtId/pricing', data: {
+      'dayOfWeek': dayOfWeek,
+      'startMin': startMin,
+      'endMin': endMin,
+      'durationMin': durationMin,
+      'priceMad': priceMad,
+    });
+  }
+
+  Future<void> deletePricingRule(String clubId, String ruleId) async {
+    await _dio.delete<void>('/clubs/$clubId/pricing/$ruleId');
   }
 
   /// Statistiques d'exploitation du club (30 derniers jours).

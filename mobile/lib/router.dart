@@ -13,6 +13,7 @@ import 'features/chat/chat_screen.dart';
 import 'features/matching/create_match_screen.dart';
 import 'features/matching/match_detail_screen.dart';
 import 'features/notifications/notifications_screen.dart';
+import 'features/owner/create_club_screen.dart';
 import 'features/owner/owner_repository.dart';
 import 'features/owner/owner_screen.dart';
 import 'features/profile/edit_profile_screen.dart';
@@ -62,6 +63,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const NotificationsScreen(),
       ),
       GoRoute(path: '/owner', builder: (_, __) => const OwnerScreen()),
+      GoRoute(
+        path: '/owner/create',
+        builder: (_, __) => const CreateClubScreen(),
+      ),
       GoRoute(
         path: '/owner/club',
         builder: (context, state) =>

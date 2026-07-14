@@ -8,6 +8,7 @@ import '../../core/api_client.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
+import 'owner_config_tab.dart';
 import 'owner_repository.dart';
 
 /// Liste des clubs du propriétaire.
@@ -19,6 +20,13 @@ class OwnerScreen extends ConsumerWidget {
     final clubs = ref.watch(myClubsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Espace club')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/owner/create'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Ajouter un club'),
+      ),
       body: PageContainer(
         maxWidth: 720,
         child: clubs.when(
@@ -32,20 +40,19 @@ class OwnerScreen extends ConsumerWidget {
               return const EmptyState(
                 icon: Icons.stadium_outlined,
                 title: 'Aucun club',
-                subtitle: 'Votre club apparaîtra ici une fois créé.',
+                subtitle:
+                    'Ajoutez votre club : il sera publié après validation\npar notre équipe.',
               );
             }
             return ListView.separated(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
               itemCount: list.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 final c = list[i];
                 final approved = c.status == 'APPROVED';
                 return SoftCard(
-                  onTap: approved
-                      ? () => context.push('/owner/club', extra: c)
-                      : null,
+                  onTap: () => context.push('/owner/club', extra: c),
                   child: Row(
                     children: [
                       Container(
@@ -248,41 +255,54 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
   @override
   Widget build(BuildContext context) {
     final calendar = ref.watch(ownerCalendarProvider(_args));
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.club.name),
-        actions: [
-          IconButton(
-            tooltip: 'Statistiques',
-            icon: const Icon(Icons.insights_outlined),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (ctx) => _StatsSheet(clubId: widget.club.id),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.club.name),
+          actions: [
+            IconButton(
+              tooltip: 'Statistiques',
+              icon: const Icon(Icons.insights_outlined),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) => _StatsSheet(clubId: widget.club.id),
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) => _ActionsSheet(
-            onManual: _manualBooking,
-            onBlock: _blockSlot,
-            onCheckin: _checkin,
+          ],
+          bottom: const TabBar(
+            labelColor: AppColors.primaryDark,
+            indicatorColor: AppColors.primary,
+            tabs: [
+              Tab(icon: Icon(Icons.event_note_outlined), text: 'Calendrier'),
+              Tab(icon: Icon(Icons.tune), text: 'Configuration'),
+            ],
           ),
         ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Actions'),
-      ),
-      body: PageContainer(
-        maxWidth: 860,
-        child: Column(
-          children: [
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: Colors.transparent,
+            builder: (ctx) => _ActionsSheet(
+              onManual: _manualBooking,
+              onBlock: _blockSlot,
+              onCheckin: _checkin,
+            ),
+          ),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add),
+          label: const Text('Actions'),
+        ),
+        body: PageContainer(
+          maxWidth: 860,
+          child: TabBarView(
+            children: [
+              // Onglet 1 : calendrier des réservations
+              Column(
+                children: [
             SizedBox(
               height: 82,
               child: ListView.builder(
@@ -370,7 +390,12 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
                 },
               ),
             ),
-          ],
+                ],
+              ),
+              // Onglet 2 : terrains, horaires, tarifs
+              OwnerConfigTab(clubId: widget.club.id),
+            ],
+          ),
         ),
       ),
     );

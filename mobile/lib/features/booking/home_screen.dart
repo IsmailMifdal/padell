@@ -267,6 +267,13 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.stadium_outlined,
                       label: t['clubSpace'],
                       onTap: () => context.push('/owner'),
+                    )
+                  else
+                    // Devenir partenaire : référencer son club
+                    _ProfileTile(
+                      icon: Icons.add_business_outlined,
+                      label: 'Ajouter mon club (partenaires)',
+                      onTap: () => context.push('/owner/create'),
                     ),
                   _ProfileTile(
                     icon: Icons.event_available_outlined,
