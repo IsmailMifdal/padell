@@ -17,10 +17,25 @@ class BookingRepository {
   // Heure locale du club, sans fuseau (l'API l'interprète en local)
   static final _localFmt = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
-  Future<List<Club>> searchClubs({String? city}) async {
+  /// Recherche de clubs : par ville si précisée, sinon autour de (lat,lng)
+  /// pour obtenir les distances réelles.
+  Future<List<Club>> searchClubs({
+    String? city,
+    double? lat,
+    double? lng,
+    double radiusKm = 100,
+  }) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/clubs',
-      queryParameters: {if (city != null && city.isNotEmpty) 'city': city},
+      queryParameters: {
+        if (city != null && city.isNotEmpty)
+          'city': city
+        else if (lat != null && lng != null) ...{
+          'lat': lat,
+          'lng': lng,
+          'radiusKm': radiusKm,
+        },
+      },
     );
     final items = (res.data!['items'] as List).cast<Map<String, dynamic>>();
     return items.map(Club.fromJson).toList();

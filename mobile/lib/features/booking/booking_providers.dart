@@ -1,14 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/location_service.dart';
 import '../../shared/models.dart';
 import 'booking_repository.dart';
 
-/// Recherche courante (filtre ville). null = tous les clubs.
+/// Recherche courante (filtre ville). null = autour de ma position.
 final clubSearchProvider = StateProvider<String?>((ref) => null);
 
-final clubsProvider = FutureProvider.autoDispose<List<Club>>((ref) {
+final clubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async {
   final city = ref.watch(clubSearchProvider);
-  return ref.watch(bookingRepositoryProvider).searchClubs(city: city);
+  if (city != null && city.isNotEmpty) {
+    return ref.watch(bookingRepositoryProvider).searchClubs(city: city);
+  }
+  // Sans filtre ville : recherche géolocalisée → distances réelles
+  final center = await ref.watch(geoCenterProvider.future);
+  return ref
+      .watch(bookingRepositoryProvider)
+      .searchClubs(lat: center.lat, lng: center.lng);
 });
 
 /// Clés de la recherche de disponibilités : (idClub, jour à minuit).

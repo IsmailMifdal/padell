@@ -60,6 +60,7 @@ class Club {
     this.paymentOnSiteAllowed = true,
     this.latitude,
     this.longitude,
+    this.amenities = const [],
   });
 
   final String id;
@@ -71,6 +72,7 @@ class Club {
   final bool paymentOnSiteAllowed;
   final double? latitude;
   final double? longitude;
+  final List<String> amenities;
 
   static double? _toDouble(dynamic v) =>
       v == null ? null : double.tryParse(v.toString());
@@ -87,6 +89,7 @@ class Club {
                 as bool,
         latitude: _toDouble(j['latitude']),
         longitude: _toDouble(j['longitude']),
+        amenities: (j['amenities'] as List?)?.cast<String>() ?? const [],
       );
 }
 
