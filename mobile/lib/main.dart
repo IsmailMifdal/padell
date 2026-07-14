@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'core/config.dart';
 import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'router.dart';
@@ -13,7 +15,19 @@ Future<void> main() async {
   await initializeDateFormatting('fr');
   await initializeDateFormatting('ar');
   await initializeDateFormatting('en');
-  runApp(const ProviderScope(child: PadelApp()));
+
+  const app = ProviderScope(child: PadelApp());
+  // Crash reporting (actif seulement si --dart-define=SENTRY_DSN fourni)
+  if (AppConfig.sentryDsn.isNotEmpty) {
+    await SentryFlutter.init(
+      (options) => options
+        ..dsn = AppConfig.sentryDsn
+        ..tracesSampleRate = 0.1,
+      appRunner: () => runApp(app),
+    );
+  } else {
+    runApp(app);
+  }
 }
 
 class PadelApp extends ConsumerWidget {

@@ -29,6 +29,12 @@ export class UpdateProfileDto {
   @MaxLength(80)
   city?: string;
 
+  /** URL publique de l'avatar (obtenue via POST /media/presign) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  avatarUrl?: string;
+
   @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;

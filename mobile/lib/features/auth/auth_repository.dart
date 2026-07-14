@@ -50,6 +50,23 @@ class AuthRepository {
     });
   }
 
+  /// Connexion sociale : le backend vérifie l'id_token (Google/Apple)
+  /// et rattache ou crée le compte.
+  Future<User> socialLogin({
+    required String provider, // GOOGLE | APPLE
+    required String idToken,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>('/auth/social', data: {
+      'provider': provider,
+      'idToken': idToken,
+      if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+      if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+    });
+    return _persist(res.data!);
+  }
+
   Future<User> verifyOtpLogin(String phone, String code) async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/otp/verify', data: {
       'phone': phone,

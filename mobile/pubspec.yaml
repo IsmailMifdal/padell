@@ -32,6 +32,13 @@ dependencies:
   latlong2: ^0.9.1
   # Partage de match (WhatsApp / Web Share API)
   share_plus: ^10.1.2
+  # Auth sociale (backend /auth/social déjà prêt)
+  google_sign_in: ^6.2.2
+  sign_in_with_apple: ^6.1.3
+  # Upload avatar (URL présignée S3/R2)
+  image_picker: ^1.1.2
+  # Crash reporting (actif si --dart-define=SENTRY_DSN)
+  sentry_flutter: ^8.14.2
 
 dev_dependencies:
   flutter_test:

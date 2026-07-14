@@ -195,6 +195,12 @@ class ProfileScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
+                        image: me?.avatarUrl == null
+                            ? null
+                            : DecorationImage(
+                                image: NetworkImage(me!.avatarUrl!),
+                                fit: BoxFit.cover,
+                              ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.15),
@@ -203,16 +209,18 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          initial,
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryDark,
-                          ),
-                        ),
-                      ),
+                      child: me?.avatarUrl != null
+                          ? null
+                          : Center(
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 14),
                     Text(

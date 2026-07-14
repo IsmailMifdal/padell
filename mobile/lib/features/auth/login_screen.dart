@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
@@ -40,6 +44,85 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref
           .read(authControllerProvider.notifier)
           .login(_identifier.text.trim(), _password.text);
+    } catch (e) {
+      setState(() => _error = apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  ButtonStyle get _socialStyle => OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        side: const BorderSide(color: AppColors.line),
+        foregroundColor: AppColors.ink,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      );
+
+  /// Bouton visible seulement si le client OAuth est configuré au build.
+  bool get _googleEnabled => AppConfig.googleWebClientId.isNotEmpty;
+
+  /// Apple Sign-In : iOS/macOS uniquement (obligatoire sur iOS, cf. stores).
+  bool get _appleEnabled =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  Future<void> _googleLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final google = GoogleSignIn(
+        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
+        serverClientId: kIsWeb ? null : AppConfig.googleWebClientId,
+      );
+      final account = await google.signIn();
+      if (account == null) return; // annulé par l'utilisateur
+      final idToken = (await account.authentication).idToken;
+      if (idToken == null) {
+        setState(() => _error = 'Google n’a pas fourni de jeton, réessayez');
+        return;
+      }
+      final names = account.displayName?.split(' ') ?? const [];
+      await ref.read(authControllerProvider.notifier).socialLogin(
+            provider: 'GOOGLE',
+            idToken: idToken,
+            firstName: names.isNotEmpty ? names.first : null,
+            lastName: names.length > 1 ? names.sublist(1).join(' ') : null,
+          );
+    } catch (e) {
+      setState(() => _error = apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _appleLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+      final idToken = credential.identityToken;
+      if (idToken == null) {
+        setState(() => _error = 'Apple n’a pas fourni de jeton, réessayez');
+        return;
+      }
+      await ref.read(authControllerProvider.notifier).socialLogin(
+            provider: 'APPLE',
+            idToken: idToken,
+            firstName: credential.givenName,
+            lastName: credential.familyName,
+          );
     } catch (e) {
       setState(() => _error = apiErrorMessage(e));
     } finally {
@@ -182,15 +265,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               _loading ? null : () => context.push('/otp'),
                           icon: const Icon(Icons.sms_outlined, size: 20),
                           label: const Text('Continuer par SMS'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
-                            side: const BorderSide(color: AppColors.line),
-                            foregroundColor: AppColors.ink,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
+                          style: _socialStyle,
                         ),
+                        // Auth sociale : boutons affichés si configurés
+                        if (_googleEnabled) ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _loading ? null : _googleLogin,
+                            icon: const Text('G',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 18,
+                                  color: Color(0xFF4285F4),
+                                )),
+                            label: const Text('Continuer avec Google'),
+                            style: _socialStyle,
+                          ),
+                        ],
+                        if (_appleEnabled) ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _loading ? null : _appleLogin,
+                            icon: const Icon(Icons.apple, size: 22),
+                            label: const Text('Continuer avec Apple'),
+                            style: _socialStyle,
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         Wrap(
                           alignment: WrapAlignment.center,

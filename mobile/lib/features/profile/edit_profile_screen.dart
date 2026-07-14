@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
@@ -22,8 +23,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   double _level = 2.0;
   String? _position;
   String? _hand;
+  String? _avatarUrl;
   bool _loaded = false;
   bool _saving = false;
+  bool _uploading = false;
 
   @override
   void dispose() {
@@ -42,6 +45,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _level = me.level ?? 2.0;
     _position = me.courtPosition;
     _hand = me.handedness;
+    _avatarUrl = me.avatarUrl;
+  }
+
+  /// Choix d'une photo → upload S3 présigné → URL publique.
+  Future<void> _pickAvatar() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    setState(() => _uploading = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final contentType = picked.mimeType ?? 'image/jpeg';
+      final url = await ref
+          .read(profileRepositoryProvider)
+          .uploadAvatar(bytes, contentType);
+      setState(() => _avatarUrl = url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiErrorMessage(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Future<void> _save() async {
@@ -54,6 +86,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             level: double.parse(_level.toStringAsFixed(1)),
             courtPosition: _position,
             handedness: _hand,
+            avatarUrl: _avatarUrl,
           );
       ref.invalidate(meProvider);
       if (mounted) {
@@ -92,6 +125,44 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
               children: [
+                // Avatar (upload via URL présignée)
+                Center(
+                  child: GestureDetector(
+                    onTap: _uploading ? null : _pickAvatar,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 46,
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.12),
+                          backgroundImage: _avatarUrl == null
+                              ? null
+                              : NetworkImage(_avatarUrl!),
+                          child: _uploading
+                              ? const CircularProgressIndicator(strokeWidth: 2.5)
+                              : _avatarUrl == null
+                                  ? const Icon(Icons.person,
+                                      size: 42, color: AppColors.primaryDark)
+                                  : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt,
+                                size: 15, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(

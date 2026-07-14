@@ -25,6 +25,7 @@ class Me {
     this.courtPosition,
     this.handedness,
     this.matchesPlayed = 0,
+    this.avatarUrl,
   });
 
   final String id;
@@ -38,6 +39,7 @@ class Me {
   final String? courtPosition;
   final String? handedness;
   final int matchesPlayed;
+  final String? avatarUrl;
 
   String get fullName => '$firstName $lastName';
   bool get isOwner => roles.contains('OWNER');
@@ -56,6 +58,7 @@ class Me {
       courtPosition: p['courtPosition'] as String?,
       handedness: p['handedness'] as String?,
       matchesPlayed: (p['matchesPlayed'] as num?)?.toInt() ?? 0,
+      avatarUrl: p['avatarUrl'] as String?,
     );
   }
 }
@@ -76,6 +79,7 @@ class ProfileRepository {
     double? level,
     String? courtPosition,
     String? handedness,
+    String? avatarUrl,
   }) async {
     await _dio.patch<Map<String, dynamic>>('/users/me/profile', data: {
       if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
@@ -84,6 +88,29 @@ class ProfileRepository {
       if (level != null) 'level': level,
       if (courtPosition != null) 'courtPosition': courtPosition,
       if (handedness != null) 'handedness': handedness,
+      if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
     });
+  }
+
+  /// Upload d'un avatar : presign backend puis PUT direct vers S3/R2.
+  /// Retourne l'URL publique à enregistrer dans le profil.
+  Future<String> uploadAvatar(List<int> bytes, String contentType) async {
+    final presign = await _dio.post<Map<String, dynamic>>(
+      '/media/presign',
+      data: {'kind': 'avatar', 'contentType': contentType},
+    );
+    final uploadUrl = presign.data!['uploadUrl'] as String;
+    final publicUrl = presign.data!['publicUrl'] as String;
+
+    // PUT direct vers le stockage (URL présignée, sans en-tête d'auth)
+    await Dio().put<void>(
+      uploadUrl,
+      data: Stream.fromIterable([bytes]),
+      options: Options(headers: {
+        'Content-Type': contentType,
+        'Content-Length': bytes.length,
+      }),
+    );
+    return publicUrl;
   }
 }

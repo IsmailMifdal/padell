@@ -16,6 +16,7 @@ import {
 import { randomBytes } from 'crypto';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { EmailService } from '../notifications/email.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CmiService } from './cmi.service';
 
@@ -27,6 +28,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly cmi: CmiService,
     private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
   ) {}
 
   // ------------------------------------------------- session de paiement CMI
@@ -208,11 +210,15 @@ export class PaymentsService {
     });
     if (payment.bookingId) {
       // Confirmation de la réservation + génération du QR de check-in
-      await this.prisma.booking.update({
+      const booking = await this.prisma.booking.update({
         where: { id: payment.bookingId },
         data: {
           status: BookingStatus.CONFIRMED,
           qrCode: randomBytes(16).toString('hex'),
+        },
+        include: {
+          court: { select: { name: true, club: { select: { name: true, address: true } } } },
+          bookedBy: { select: { email: true } },
         },
       });
       await this.notifications.notify(
@@ -222,6 +228,19 @@ export class PaymentsService {
         'Votre paiement est validé — retrouvez votre QR code dans Mes réservations',
         { bookingId: payment.bookingId },
       );
+      // Email de confirmation (canal secondaire, non bloquant)
+      if (booking.bookedBy?.email) {
+        await this.email.send(
+          booking.bookedBy.email,
+          'Réservation confirmée — ' + booking.court.club.name,
+          this.email.wrap('Réservation confirmée', [
+            `<b>${booking.court.club.name}</b> · ${booking.court.name}`,
+            `${booking.startsAt.toLocaleString('fr-FR')} — ${Number(booking.priceMad).toFixed(0)} MAD`,
+            `Adresse : ${booking.court.club.address}`,
+            `Code de check-in : <b>${booking.qrCode}</b>`,
+          ]),
+        );
+      }
     }
     if (payment.matchId) {
       await this.confirmMatchIfComplete(payment.matchId);
@@ -279,7 +298,7 @@ export class PaymentsService {
     }
     const players = await this.prisma.matchPlayer.findMany({
       where: { matchId, status: MatchPlayerStatus.ACCEPTED },
-      select: { playerId: true },
+      select: { playerId: true, player: { select: { email: true } } },
     });
     await this.notifications.notifyMany(
       players.map((p) => p.playerId),
@@ -288,6 +307,20 @@ export class PaymentsService {
       'Les 4 parts sont payées : votre match est confirmé, à bientôt sur le terrain !',
       { matchId },
     );
+    // Email aux joueurs qui en ont un
+    for (const p of players) {
+      if (p.player.email) {
+        await this.email.send(
+          p.player.email,
+          'Votre match de padel est confirmé 🎾',
+          this.email.wrap('Match confirmé', [
+            'Les 4 parts sont payées : votre match est confirmé.',
+            `Départ : ${match.startsAt.toLocaleString('fr-FR')}`,
+            'Retrouvez le détail et le chat du match dans l’application.',
+          ]),
+        );
+      }
+    }
     this.logger.log(`Match ${matchId} complet : confirmé avec sa réservation`);
   }
 

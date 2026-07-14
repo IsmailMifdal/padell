@@ -64,6 +64,21 @@ class AuthController extends Notifier<AuthState> {
     state = AuthState(AuthStage.authenticated, user: user);
   }
 
+  Future<void> socialLogin({
+    required String provider,
+    required String idToken,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final user = await _repo.socialLogin(
+      provider: provider,
+      idToken: idToken,
+      firstName: firstName,
+      lastName: lastName,
+    );
+    state = AuthState(AuthStage.authenticated, user: user);
+  }
+
   Future<void> logout() async {
     await _repo.logout();
     state = const AuthState(AuthStage.unauthenticated);

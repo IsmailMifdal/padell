@@ -15,6 +15,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OwnerModule } from './modules/owner/owner.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { MediaModule } from './modules/media/media.module';
 import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -37,6 +38,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     NotificationsModule,
     OwnerModule,
     AdminModule,
+    MediaModule,
     HealthModule,
   ],
   providers: [
