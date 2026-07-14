@@ -10,7 +10,9 @@ import '../../shared/models.dart';
 import '../../shared/widgets.dart';
 import 'booking_providers.dart';
 import 'booking_repository.dart';
-import 'home_screen.dart';
+
+/// Filtre : true = à venir (défaut), false = historique.
+final upcomingOnlyProvider = StateProvider<bool>((ref) => true);
 
 class MyBookingsScreen extends ConsumerWidget {
   const MyBookingsScreen({super.key});
@@ -18,48 +20,119 @@ class MyBookingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bookings = ref.watch(myBookingsProvider);
-    return SafeArea(
-      bottom: false,
-      child: PageContainer(
-        maxWidth: 860,
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          const ScreenHeader(
-            title: 'Mes réservations',
-            subtitle: 'Vos terrains réservés et leur QR d’accès',
+    final upcoming = ref.watch(upcomingOnlyProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GradientHeader(
+          title: 'Mes réservations',
+          subtitle: 'Vos terrains réservés et leur QR d’accès',
+          emoji: '🎟️',
+          bottom: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                _FilterTab(
+                  label: 'À venir',
+                  selected: upcoming,
+                  onTap: () =>
+                      ref.read(upcomingOnlyProvider.notifier).state = true,
+                ),
+                _FilterTab(
+                  label: 'Historique',
+                  selected: !upcoming,
+                  onTap: () =>
+                      ref.read(upcomingOnlyProvider.notifier).state = false,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Expanded(
+        ),
+        Expanded(
+          child: PageContainer(
+            maxWidth: 860,
             child: bookings.when(
-              loading: () => const CenteredLoader(),
+              loading: () => const SkeletonList(itemHeight: 150),
               error: (e, _) => ErrorRetry(
                 message: apiErrorMessage(e),
                 onRetry: () => ref.invalidate(myBookingsProvider),
               ),
-              data: (list) {
+              data: (all) {
+                final now = DateTime.now();
+                final list = all
+                    .where((b) => upcoming
+                        ? b.endsAt.isAfter(now) && b.status != 'CANCELLED'
+                        : b.endsAt.isBefore(now) || b.status == 'CANCELLED')
+                    .toList();
                 if (list.isEmpty) {
-                  return const EmptyState(
+                  return EmptyState(
                     icon: Icons.confirmation_number_outlined,
-                    title: 'Aucune réservation',
-                    subtitle:
-                        'Réservez un terrain depuis l’onglet Clubs\npour le voir apparaître ici.',
+                    title: upcoming
+                        ? 'Aucune réservation à venir'
+                        : 'Aucun historique',
+                    subtitle: upcoming
+                        ? 'Réservez un terrain depuis l’onglet Clubs\npour le voir apparaître ici.'
+                        : 'Vos réservations passées et annulées\napparaîtront ici.',
                   );
                 }
                 return RefreshIndicator(
                   onRefresh: () async => ref.invalidate(myBookingsProvider),
                   child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                     itemCount: list.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (context, i) => _BookingCard(booking: list[i]),
+                    itemBuilder: (context, i) =>
+                        _BookingCard(booking: list[i]),
                   ),
                 );
               },
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Onglet de filtre dans l'en-tête (verre dépoli).
+class _FilterTab extends StatelessWidget {
+  const _FilterTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.primaryDark : Colors.white,
+              ),
+            ),
+          ),
         ),
       ),
     );

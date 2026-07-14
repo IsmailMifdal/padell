@@ -9,7 +9,6 @@ import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
 import '../../shared/widgets.dart';
-import '../booking/home_screen.dart';
 import 'matching_providers.dart';
 
 class MatchesScreen extends ConsumerWidget {
@@ -31,40 +30,47 @@ class MatchesScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Créer un match'),
       ),
-      body: SafeArea(
-        bottom: false,
-        child: PageContainer(
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            const ScreenHeader(
-              title: 'Matchs',
-              subtitle: 'Rejoignez des joueurs près de chez vous',
-            ),
-            const SizedBox(height: 12),
-            // Bascule Autour de moi / Mes matchs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.near_me_outlined, size: 17),
-                    label: Text('Autour de moi'),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GradientHeader(
+            title: 'Matchs',
+            subtitle: 'Rejoignez des joueurs près de chez vous',
+            emoji: '🎾',
+            // Bascule intégrée à l'en-tête (verre dépoli)
+            bottom: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  _HeaderTab(
+                    label: 'Autour de moi',
+                    icon: Icons.near_me_outlined,
+                    selected: !showMine,
+                    onTap: () => ref
+                        .read(showMyMatchesProvider.notifier)
+                        .state = false,
                   ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.person_outline, size: 17),
-                    label: Text('Mes matchs'),
+                  _HeaderTab(
+                    label: 'Mes matchs',
+                    icon: Icons.person_outline,
+                    selected: showMine,
+                    onTap: () =>
+                        ref.read(showMyMatchesProvider.notifier).state = true,
                   ),
                 ],
-                selected: {showMine},
-                onSelectionChanged: (s) =>
-                    ref.read(showMyMatchesProvider.notifier).state = s.first,
               ),
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: PageContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             if (!showMine) ...[
               // Zone + statut géoloc
               Padding(
@@ -139,7 +145,7 @@ class MatchesScreen extends ConsumerWidget {
             ],
             Expanded(
               child: matches.when(
-                loading: () => const CenteredLoader(),
+                loading: () => const SkeletonList(itemHeight: 132),
                 error: (e, _) => ErrorRetry(
                   message: apiErrorMessage(e),
                   onRetry: () => ref.invalidate(
@@ -192,7 +198,58 @@ class MatchesScreen extends ConsumerWidget {
                 },
               ),
             ),
-          ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Onglet de l'en-tête (bascule en verre dépoli).
+class _HeaderTab extends StatelessWidget {
+  const _HeaderTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: selected ? AppColors.primaryDark : Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.primaryDark : Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
       ),

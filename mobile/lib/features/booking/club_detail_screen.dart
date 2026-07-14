@@ -197,6 +197,37 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                               ),
                             ],
                           ),
+                          // Équipements du club (verre dépoli)
+                          if (widget.club.amenities.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: widget.club.amenities
+                                  .take(5)
+                                  .map(
+                                    (a) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 9, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.18),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        a,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -211,7 +242,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           ),
           Expanded(
             child: slots.when(
-              loading: () => const CenteredLoader(),
+              loading: () => const SkeletonList(itemHeight: 76, count: 6),
               error: (e, _) => ErrorRetry(
                 message: apiErrorMessage(e),
                 onRetry: () => ref.invalidate(availabilityProvider(args)),

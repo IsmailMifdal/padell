@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/palette.dart';
+import '../core/responsive.dart';
 
 /// Ombre douce commune aux cartes.
 List<BoxShadow> softShadow([double opacity = 0.06]) => [
@@ -165,6 +166,179 @@ class ErrorRetry extends StatelessWidget {
               label: const Text('Réessayer'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// En-tête de page en dégradé (cohérent avec la page Clubs).
+class GradientHeader extends StatelessWidget {
+  const GradientHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.emoji,
+    this.bottom,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String? emoji;
+
+  /// Widget optionnel intégré au bas de l'en-tête (recherche, filtres…).
+  final Widget? bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      child: SafeArea(
+        bottom: false,
+        child: PageContainer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (emoji != null) ...[
+                    Container(
+                      height: 44,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Text(emoji!,
+                            style: const TextStyle(fontSize: 22)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        if (subtitle != null)
+                          Text(
+                            subtitle!,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 13,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (bottom != null) ...[
+                const SizedBox(height: 14),
+                bottom!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Squelettes de chargement génériques (effet pulse).
+class SkeletonList extends StatefulWidget {
+  const SkeletonList({super.key, this.itemHeight = 120, this.count = 4});
+  final double itemHeight;
+  final int count;
+
+  @override
+  State<SkeletonList> createState() => _SkeletonListState();
+}
+
+class _SkeletonListState extends State<SkeletonList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+    lowerBound: 0.45,
+    upperBound: 1,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _pulse,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: widget.count,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (_, __) => Container(
+          height: widget.itemHeight,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.line.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 14,
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: AppColors.line.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 11,
+                      width: 220,
+                      decoration: BoxDecoration(
+                        color: AppColors.line.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
