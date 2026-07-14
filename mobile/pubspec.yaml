@@ -39,6 +39,9 @@ dependencies:
   image_picker: ^1.1.2
   # Crash reporting (actif si --dart-define=SENTRY_DSN)
   sentry_flutter: ^8.14.2
+  # QR code visuel (réservations) + scan caméra (check-in club)
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.2
 
 dev_dependencies:
   flutter_test:

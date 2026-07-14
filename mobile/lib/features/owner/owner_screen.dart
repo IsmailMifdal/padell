@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/api_client.dart';
 import '../../core/palette.dart';
@@ -181,13 +182,35 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Check-in client'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Code QR de la réservation',
-            prefixIcon: Icon(Icons.qr_code_2),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Scan caméra (mobile + web Chrome) avec repli saisie manuelle
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                final scanned = await Navigator.push<String>(
+                  ctx,
+                  MaterialPageRoute(builder: (_) => const _ScanScreen()),
+                );
+                if (scanned != null && ctx.mounted) {
+                  Navigator.pop(ctx, scanned);
+                }
+              },
+              icon: const Icon(Icons.qr_code_scanner, size: 20),
+              label: const Text('Scanner avec la caméra'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'ou saisir le code manuellement',
+                prefixIcon: Icon(Icons.qr_code_2),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -413,6 +436,37 @@ class _OwnerClubScreenState extends ConsumerState<OwnerClubScreen> {
               icon: const Icon(Icons.close, size: 18, color: AppColors.danger),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Scanner de QR code (check-in) : renvoie le premier code lu.
+class _ScanScreen extends StatefulWidget {
+  const _ScanScreen();
+
+  @override
+  State<_ScanScreen> createState() => _ScanScreenState();
+}
+
+class _ScanScreenState extends State<_ScanScreen> {
+  bool _handled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Scanner le QR client')),
+      body: MobileScanner(
+        onDetect: (capture) {
+          if (_handled) return;
+          final value = capture.barcodes.isEmpty
+              ? null
+              : capture.barcodes.first.rawValue;
+          if (value != null && value.isNotEmpty) {
+            _handled = true;
+            Navigator.pop(context, value);
+          }
+        },
       ),
     );
   }

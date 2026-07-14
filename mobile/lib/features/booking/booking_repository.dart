@@ -59,6 +59,26 @@ class BookingRepository {
     await _dio.post<void>('/bookings/$bookingId/cancel', data: {});
   }
 
+  // -------------------------------------------------------------------- avis
+
+  Future<void> addReview(
+    String clubId, {
+    required String bookingId,
+    required int rating,
+    String? comment,
+  }) async {
+    await _dio.post<void>('/clubs/$clubId/reviews', data: {
+      'bookingId': bookingId,
+      'rating': rating,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> reviews(String clubId) async {
+    final res = await _dio.get<List<dynamic>>('/clubs/$clubId/reviews');
+    return res.data!.cast<Map<String, dynamic>>();
+  }
+
   // ---------------------------------------------------------- liste d'attente
 
   Future<bool> waitlistStatus(String clubId, DateTime day) async {

@@ -77,6 +77,7 @@ model User {
   ratingsReceived     Rating[]        @relation("ratingsReceived")
   favoriteClubs       FavoriteClub[]
   waitlistEntries     WaitlistEntry[]
+  clubReviews         ClubReview[]
 
   @@map("users")
 }
@@ -159,6 +160,7 @@ model Club {
   matches              Match[]
   favoritedBy          FavoriteClub[]
   waitlistEntries      WaitlistEntry[]
+  reviews              ClubReview[]
 
   @@index([ownerId])
   @@index([status, city])
@@ -271,6 +273,7 @@ model Booking {
   bookedBy           User?         @relation(fields: [bookedById], references: [id])
   payments           Payment[]
   match              Match?
+  reviews            ClubReview[]
 
   @@index([courtId, startsAt])
   @@index([bookedById, startsAt])
@@ -533,6 +536,24 @@ model WaitlistEntry {
   @@unique([userId, clubId, date])
   @@index([clubId, date])
   @@map("waitlist_entries")
+}
+
+// Avis sur un club, réservé aux réservations honorées (check-in fait)
+model ClubReview {
+  id        String   @id @default(uuid())
+  clubId    String   @map("club_id")
+  bookingId String   @map("booking_id")
+  userId    String   @map("user_id")
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([bookingId, userId])
+  @@index([clubId, createdAt])
+  @@map("club_reviews")
 }
 
 model OtpCode {

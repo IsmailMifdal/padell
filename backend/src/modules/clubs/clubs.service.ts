@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Club, ClubStatus, Prisma, Role } from '@prisma/client';
+import { BookingStatus, Club, ClubStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { CreateClubDto, UpdateClubDto } from './dto/create-club.dto';
@@ -105,6 +106,78 @@ export class ClubsService {
     }
     const { commissionRate, ...publicClub } = club;
     return publicClub;
+  }
+
+  // -------------------------------------------------------------------- avis
+
+  /** Avis publics d'un club (nom du joueur + note + commentaire). */
+  async listReviews(clubId: string) {
+    return this.prisma.clubReview.findMany({
+      where: { clubId },
+      include: {
+        user: {
+          select: {
+            profile: { select: { firstName: true, lastName: true, avatarUrl: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  /**
+   * Déposer un avis : réservé aux réservations honorées (check-in fait).
+   * Un seul avis par réservation ; la moyenne du club est recalculée.
+   */
+  async addReview(
+    user: AuthUser,
+    clubId: string,
+    bookingId: string,
+    rating: number,
+    comment?: string,
+  ) {
+    const booking = await this.prisma.booking.findFirst({
+      where: { id: bookingId, bookedById: user.userId, court: { clubId } },
+    });
+    if (!booking) throw new NotFoundException('Réservation introuvable');
+    if (booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Vous pourrez noter le club après votre venue (check-in)',
+      );
+    }
+
+    try {
+      const review = await this.prisma.clubReview.create({
+        data: { clubId, bookingId, userId: user.userId, rating, comment },
+      });
+      await this.recomputeRating(clubId);
+      return review;
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('Vous avez déjà noté cette réservation');
+      }
+      throw e;
+    }
+  }
+
+  private async recomputeRating(clubId: string) {
+    const agg = await this.prisma.clubReview.aggregate({
+      where: { clubId },
+      _avg: { rating: true },
+    });
+    await this.prisma.club.update({
+      where: { id: clubId },
+      data: {
+        ratingAvg:
+          agg._avg.rating === null
+            ? null
+            : Math.round(agg._avg.rating * 10) / 10,
+      },
+    });
   }
 
   // ------------------------------------------------------- côté propriétaire

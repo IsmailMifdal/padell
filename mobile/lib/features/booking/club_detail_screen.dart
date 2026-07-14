@@ -12,6 +12,12 @@ import '../../shared/widgets.dart';
 import 'booking_providers.dart';
 import 'booking_repository.dart';
 
+/// Avis publics d'un club.
+final clubReviewsProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, clubId) {
+  return ref.watch(bookingRepositoryProvider).reviews(clubId);
+});
+
 class ClubDetailScreen extends ConsumerStatefulWidget {
   const ClubDetailScreen({super.key, required this.club});
   final Club club;
@@ -154,6 +160,41 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                   ),
                                 ),
                               ),
+                              // Avis du club (note moyenne + liste)
+                              GestureDetector(
+                                onTap: () => showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) =>
+                                      _ReviewsSheet(club: widget.club),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded,
+                                          size: 15, color: AppColors.amber),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        widget.club.ratingAvg
+                                                ?.toStringAsFixed(1) ??
+                                            'Avis',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -207,6 +248,126 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           ),
         ],
         ),
+      ),
+    );
+  }
+}
+
+/// Liste des avis du club (note + commentaire + auteur).
+class _ReviewsSheet extends ConsumerWidget {
+  const _ReviewsSheet({required this.club});
+  final Club club;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviews = ref.watch(clubReviewsProvider(club.id));
+    return Container(
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              height: 5,
+              width: 44,
+              decoration: BoxDecoration(
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Avis — ${club.name}',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (club.ratingAvg != null)
+                InfoChip(
+                  label: club.ratingAvg!.toStringAsFixed(1),
+                  icon: Icons.star_rounded,
+                  color: AppColors.amber,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Flexible(
+            child: reviews.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(24),
+                child: CenteredLoader(),
+              ),
+              error: (e, _) => Text(apiErrorMessage(e)),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      'Pas encore d’avis — soyez le premier après votre venue !',
+                      style: TextStyle(color: AppColors.slate),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const Divider(height: 20),
+                  itemBuilder: (context, i) {
+                    final r = list[i];
+                    final profile =
+                        (r['user']?['profile'] ?? {}) as Map<String, dynamic>;
+                    final rating = (r['rating'] as num?)?.toInt() ?? 0;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${profile['firstName'] ?? ''} ${profile['lastName'] ?? ''}'
+                                    .trim(),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            for (int s = 1; s <= 5; s++)
+                              Icon(
+                                s <= rating
+                                    ? Icons.star_rounded
+                                    : Icons.star_outline_rounded,
+                                size: 16,
+                                color: AppColors.amber,
+                              ),
+                          ],
+                        ),
+                        if ((r['comment'] ?? '').toString().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              r['comment'] as String,
+                              style: const TextStyle(
+                                  color: AppColors.slate, fontSize: 13),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

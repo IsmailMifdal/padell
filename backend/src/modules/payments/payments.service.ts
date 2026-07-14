@@ -204,23 +204,33 @@ export class PaymentsService {
     paymentId: string,
     transId: string | null,
   ): Promise<void> {
-    const payment = await this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: PaymentStatus.PAID, cmiTransactionId: transId },
-    });
-    if (payment.bookingId) {
-      // Confirmation de la réservation + génération du QR de check-in
-      const booking = await this.prisma.booking.update({
-        where: { id: payment.bookingId },
-        data: {
-          status: BookingStatus.CONFIRMED,
-          qrCode: randomBytes(16).toString('hex'),
-        },
-        include: {
-          court: { select: { name: true, club: { select: { name: true, address: true } } } },
-          bookedBy: { select: { email: true } },
-        },
+    // Atomique : paiement encaissé ⇔ réservation confirmée
+    const { payment, booking } = await this.prisma.$transaction(async (tx) => {
+      const paid = await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.PAID, cmiTransactionId: transId },
       });
+      const confirmed = paid.bookingId
+        ? await tx.booking.update({
+            where: { id: paid.bookingId },
+            data: {
+              status: BookingStatus.CONFIRMED,
+              qrCode: randomBytes(16).toString('hex'),
+            },
+            include: {
+              court: {
+                select: {
+                  name: true,
+                  club: { select: { name: true, address: true } },
+                },
+              },
+              bookedBy: { select: { email: true } },
+            },
+          })
+        : null;
+      return { payment: paid, booking: confirmed };
+    });
+    if (payment.bookingId && booking) {
       await this.notifications.notify(
         payment.userId,
         'BOOKING_CONFIRMED',
@@ -283,19 +293,23 @@ export class PaymentsService {
     });
     if (paidCount < 4) return;
 
-    const match = await this.prisma.match.update({
-      where: { id: matchId },
-      data: { status: MatchStatus.CONFIRMED },
-    });
-    if (match.bookingId) {
-      await this.prisma.booking.update({
-        where: { id: match.bookingId },
-        data: {
-          status: BookingStatus.CONFIRMED,
-          qrCode: randomBytes(16).toString('hex'),
-        },
+    // Atomique : match confirmé ⇔ réservation confirmée (jamais l'un sans l'autre)
+    const match = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.match.update({
+        where: { id: matchId },
+        data: { status: MatchStatus.CONFIRMED },
       });
-    }
+      if (updated.bookingId) {
+        await tx.booking.update({
+          where: { id: updated.bookingId },
+          data: {
+            status: BookingStatus.CONFIRMED,
+            qrCode: randomBytes(16).toString('hex'),
+          },
+        });
+      }
+      return updated;
+    });
     const players = await this.prisma.matchPlayer.findMany({
       where: { matchId, status: MatchPlayerStatus.ACCEPTED },
       select: { playerId: true, player: { select: { email: true } } },

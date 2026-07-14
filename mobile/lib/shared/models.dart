@@ -245,6 +245,7 @@ class Booking {
     this.qrCode,
     this.courtName,
     this.clubName,
+    this.clubId,
   });
 
   final String id;
@@ -255,6 +256,7 @@ class Booking {
   final String? qrCode;
   final String? courtName;
   final String? clubName;
+  final String? clubId;
 
   factory Booking.fromJson(Map<String, dynamic> j) {
     final court = j['court'] as Map<String, dynamic>?;
@@ -268,6 +270,7 @@ class Booking {
       qrCode: j['qrCode'] as String?,
       courtName: court?['name'] as String?,
       clubName: club?['name'] as String?,
+      clubId: club?['id'] as String?,
     );
   }
 }

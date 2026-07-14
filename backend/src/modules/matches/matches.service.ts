@@ -627,16 +627,24 @@ export class MatchesService {
     bookingId: string | null,
     reason: string,
   ) {
-    await this.prisma.match.update({
-      where: { id: matchId },
-      data: { status: MatchStatus.CANCELLED },
-    });
-    if (bookingId) {
-      await this.prisma.booking.update({
-        where: { id: bookingId },
-        data: { status: BookingStatus.CANCELLED, cancellationReason: reason },
-      });
-    }
+    // Atomique : un match annulé ne doit jamais garder un créneau réservé
+    await this.prisma.$transaction([
+      this.prisma.match.update({
+        where: { id: matchId },
+        data: { status: MatchStatus.CANCELLED },
+      }),
+      ...(bookingId
+        ? [
+            this.prisma.booking.update({
+              where: { id: bookingId },
+              data: {
+                status: BookingStatus.CANCELLED,
+                cancellationReason: reason,
+              },
+            }),
+          ]
+        : []),
+    ]);
     // Remboursement intégral de toutes les parts payées
     const paid = await this.prisma.matchPlayer.findMany({
       where: { matchId, paymentId: { not: null } },

@@ -20,6 +20,22 @@ import { CreateCourtDto, UpdateCourtDto } from './dto/court.dto';
 import { SetOpeningHoursDto } from './dto/opening-hours.dto';
 import { CreatePricingRuleDto } from './dto/pricing-rule.dto';
 import { SearchClubsQuery } from './dto/search-clubs.query';
+import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+
+class CreateReviewDto {
+  @IsUUID()
+  bookingId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  comment?: string;
+}
 
 @Controller('clubs')
 export class ClubsController {
@@ -41,6 +57,21 @@ export class ClubsController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.clubs.findOnePublic(id);
+  }
+
+  @Public()
+  @Get(':id/reviews')
+  listReviews(@Param('id', ParseUUIDPipe) id: string) {
+    return this.clubs.listReviews(id);
+  }
+
+  @Post(':id/reviews')
+  addReview(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateReviewDto,
+  ) {
+    return this.clubs.addReview(user, id, dto.bookingId, dto.rating, dto.comment);
   }
 
   // Propriétaire
