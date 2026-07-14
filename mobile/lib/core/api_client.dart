@@ -106,6 +106,12 @@ class ApiClient {
 
 /// Extrait un message d'erreur lisible d'une [DioException].
 String apiErrorMessage(Object error) {
+  // En debug, trace l'erreur réelle (ex : erreur de parse d'un modèle)
+  assert(() {
+    // ignore: avoid_print
+    print('apiErrorMessage: $error');
+    return true;
+  }());
   if (error is DioException) {
     final data = error.response?.data;
     if (data is Map && data['message'] != null) {

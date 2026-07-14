@@ -115,8 +115,8 @@ class Slot {
         courtName: (j['courtName'] ?? '') as String,
         startsAt: parseLocal(j['startsAt']),
         endsAt: parseLocal(j['endsAt']),
-        durationMin: (j['durationMin'] as num).toInt(),
-        priceMad: (j['priceMad'] as num).toDouble(),
+        durationMin: int.tryParse(j['durationMin'].toString()) ?? 90,
+        priceMad: double.tryParse(j['priceMad'].toString()) ?? 0,
       );
 }
 
@@ -218,7 +218,7 @@ class PadelMatch {
       clubName: (club['name'] ?? 'Club') as String,
       city: (club['city'] ?? '') as String,
       startsAt: parseLocal(j['startsAt']),
-      durationMin: (j['durationMin'] as num).toInt(),
+      durationMin: int.tryParse(j['durationMin'].toString()) ?? 90,
       levelMin: _d(j['levelMin']),
       levelMax: _d(j['levelMax']),
       pricePerPlayerMad: _d(j['pricePerPlayerMad']),
@@ -269,7 +269,8 @@ class Booking {
       status: (j['status'] ?? '') as String,
       startsAt: parseLocal(j['startsAt']),
       endsAt: parseLocal(j['endsAt']),
-      priceMad: (j['priceMad'] as num).toDouble(),
+      // Les Decimal Prisma arrivent en chaîne ("300") : parse tolérant
+      priceMad: double.tryParse(j['priceMad'].toString()) ?? 0,
       qrCode: j['qrCode'] as String?,
       courtName: court?['name'] as String?,
       clubName: club?['name'] as String?,
