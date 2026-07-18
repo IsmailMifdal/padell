@@ -38,7 +38,7 @@ dependencies:
   # Upload avatar (URL présignée S3/R2)
   image_picker: ^1.1.2
   # Crash reporting (actif si --dart-define=SENTRY_DSN)
-  sentry_flutter: ^8.14.2
+  sentry_flutter: ^9.6.0
   # QR code visuel (réservations) + scan caméra (check-in club)
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.2
@@ -47,6 +47,26 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
+
+# Icône de lancement (générée : dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#0A8B60"
+  adaptive_icon_foreground: "assets/icon/icon_fg.png"
+
+# Écran de démarrage (généré : dart run flutter_native_splash:create)
+flutter_native_splash:
+  color: "#0A8B60"
+  image: assets/icon/splash.png
+  android_12:
+    color: "#0A8B60"
+    image: assets/icon/splash.png
