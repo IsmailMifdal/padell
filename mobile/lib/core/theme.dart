@@ -28,15 +28,51 @@ class AppTheme {
 
   static ThemeData _build(ColorScheme scheme, Color bg, Brightness brightness) {
     final base = ThemeData(brightness: brightness);
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
+    var textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
         .apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
+    // Échelle typographique resserrée : titres denses, poids affirmés
+    textTheme = textTheme.copyWith(
+      headlineMedium: textTheme.headlineMedium
+          ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.6),
+      titleLarge: textTheme.titleLarge
+          ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+      titleMedium: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      labelLarge: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+    );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: bg,
       textTheme: textTheme,
-      splashFactory: InkRipple.splashFactory,
+      splashFactory: InkSparkle.splashFactory,
+      // Transitions de pages fluides (fondu-glissement) sur tous les OS
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: const BorderSide(color: AppColors.line),
+        ),
+        labelStyle: textTheme.labelMedium,
+        backgroundColor: scheme.surface,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: bg,
         surfaceTintColor: Colors.transparent,

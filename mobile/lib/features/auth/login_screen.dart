@@ -137,42 +137,106 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         maxWidth: 560,
         child: Column(
         children: [
-          // Hero dégradé
+          // Hero de marque : dégradé + halos décoratifs + wordmark
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(28, 72, 28, 40),
             decoration: const BoxDecoration(gradient: AppColors.heroGradient),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Container(
-                  height: 60,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Center(
-                    child: Text('🎾', style: TextStyle(fontSize: 30)),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Bienvenue 👋',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                Positioned(
+                  right: -60,
+                  top: -40,
+                  child: Container(
+                    height: 190,
+                    width: 190,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Réservez un terrain, trouvez des partenaires,\njouez au padel près de chez vous.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 14,
-                    height: 1.4,
+                Positioned(
+                  right: 30,
+                  top: 70,
+                  child: Container(
+                    height: 70,
+                    width: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.lime.withValues(alpha: 0.25),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -10,
+                  bottom: -26,
+                  child: Icon(
+                    Icons.sports_tennis,
+                    size: 130,
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 68, 28, 42),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Wordmark
+                      Row(
+                        children: [
+                          Container(
+                            height: 44,
+                            width: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Center(
+                              child: Text('🎾',
+                                  style: TextStyle(fontSize: 22)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'PADEL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 4,
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.only(left: 3, top: 10),
+                            height: 7,
+                            width: 7,
+                            decoration: const BoxDecoration(
+                              color: AppColors.lime,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 26),
+                      const Text(
+                        'Jouez.\nRéservez.\nProgressez.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          height: 1.12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Le padel au Maroc, à portée de main.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -246,18 +310,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: _loading ? null : _submit,
-                          child: _loading
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Se connecter'),
+                        GradientButton(
+                          label: 'Se connecter',
+                          loading: _loading,
+                          onPressed: _submit,
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(

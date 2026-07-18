@@ -96,34 +96,56 @@ class HomeScreen extends ConsumerWidget {
       );
     }
 
-    // Mobile : barre de navigation en bas
+    // Mobile : barre de navigation flottante (pilule)
     return Scaffold(
+      extendBody: true,
       body: body,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: select,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.search_outlined),
-            selectedIcon: const Icon(Icons.search),
-            label: t['clubs'],
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.ink.withValues(alpha: 0.14),
+                blurRadius: 26,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.groups_2_outlined),
-            selectedIcon: const Icon(Icons.groups_2),
-            label: t['matches'],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(26),
+            child: NavigationBar(
+              height: 64,
+              backgroundColor: Colors.transparent,
+              selectedIndex: index,
+              onDestinationSelected: select,
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.search_outlined),
+                  selectedIcon: const Icon(Icons.search),
+                  label: t['clubs'],
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.groups_2_outlined),
+                  selectedIcon: const Icon(Icons.groups_2),
+                  label: t['matches'],
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.confirmation_number_outlined),
+                  selectedIcon: const Icon(Icons.confirmation_number),
+                  label: t['bookings'],
+                ),
+                NavigationDestination(
+                  icon: profileIcon,
+                  selectedIcon: profileIconSelected,
+                  label: t['profile'],
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.confirmation_number_outlined),
-            selectedIcon: const Icon(Icons.confirmation_number),
-            label: t['bookings'],
-          ),
-          NavigationDestination(
-            icon: profileIcon,
-            selectedIcon: profileIconSelected,
-            label: t['profile'],
-          ),
-        ],
+        ),
       ),
     );
   }

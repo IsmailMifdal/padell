@@ -668,10 +668,10 @@ class _ConfirmSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          FilledButton.icon(
+          GradientButton(
+            label: 'Payer en ligne (CMI)',
+            icon: Icons.credit_card,
             onPressed: () => Navigator.pop(context, 'ONLINE'),
-            icon: const Icon(Icons.credit_card, size: 20),
-            label: const Text('Payer en ligne (CMI)'),
           ),
           if (club.paymentOnSiteAllowed) ...[
             const SizedBox(height: 10),

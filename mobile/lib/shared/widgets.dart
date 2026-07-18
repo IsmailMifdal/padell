@@ -12,8 +12,9 @@ List<BoxShadow> softShadow([double opacity = 0.06]) => [
       ),
     ];
 
-/// Conteneur type carte : fond surface, coins arrondis, ombre douce.
-class SoftCard extends StatelessWidget {
+/// Conteneur type carte : fond surface, coins arrondis, ombre douce,
+/// avec un léger effet d'appui (scale) quand la carte est cliquable.
+class SoftCard extends StatefulWidget {
   const SoftCard({
     super.key,
     required this.child,
@@ -28,21 +29,112 @@ class SoftCard extends StatelessWidget {
   final double radius;
 
   @override
+  State<SoftCard> createState() => _SoftCardState();
+}
+
+class _SoftCardState extends State<SoftCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final surface = Theme.of(context).colorScheme.surface;
-    return Material(
+    final card = Material(
       color: surface,
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(widget.radius),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(radius),
+        onTap: widget.onTap,
+        onHighlightChanged: widget.onTap == null
+            ? null
+            : (v) => setState(() => _pressed = v),
+        borderRadius: BorderRadius.circular(widget.radius),
         child: Ink(
           decoration: BoxDecoration(
             color: surface,
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(widget.radius),
             boxShadow: softShadow(),
           ),
-          child: Padding(padding: padding, child: child),
+          child: Padding(padding: widget.padding, child: widget.child),
+        ),
+      ),
+    );
+    if (widget.onTap == null) return card;
+    return AnimatedScale(
+      scale: _pressed ? 0.98 : 1,
+      duration: const Duration(milliseconds: 110),
+      curve: Curves.easeOut,
+      child: card,
+    );
+  }
+}
+
+/// Bouton principal en dégradé de marque (CTA majeurs).
+class GradientButton extends StatelessWidget {
+  const GradientButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.icon,
+    this.loading = false,
+    this.height = 54,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool loading;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null || loading;
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: disabled ? 0.6 : 1,
+      child: Material(
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          height: height,
+          decoration: BoxDecoration(
+            gradient: AppColors.heroGradient,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: InkWell(
+            onTap: disabled ? null : onPressed,
+            borderRadius: BorderRadius.circular(16),
+            child: Center(
+              child: loading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) ...[
+                          Icon(icon, size: 20, color: Colors.white),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ),
       ),
     );
