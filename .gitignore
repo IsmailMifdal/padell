@@ -4,3 +4,5 @@ dist/
 *.log
 coverage/
 .DS_Store
+deploy/backups/
+deploy/.env

@@ -74,6 +74,12 @@ class BookingRepository {
     await _dio.post<void>('/bookings/$bookingId/cancel', data: {});
   }
 
+  /// Fiche publique d'un club (re-réservation 1 clic depuis l'historique).
+  Future<Club> getClub(String clubId) async {
+    final res = await _dio.get<Map<String, dynamic>>('/clubs/$clubId');
+    return Club.fromJson(res.data!);
+  }
+
   // -------------------------------------------------------------------- avis
 
   Future<void> addReview(

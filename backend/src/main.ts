@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as Sentry from '@sentry/node';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -17,7 +18,8 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  app.use(helmet());
+  // CSP désactivée pour laisser l'UI Swagger (/docs) charger ses scripts
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.enableCors({ origin: true, credentials: true });
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(
@@ -26,6 +28,22 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
     }),
+  );
+
+  // Documentation OpenAPI interactive sur /docs (JSON : /docs-json)
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Padel API')
+    .setDescription(
+      'Réservation de terrains & matching de joueurs de padel (Maroc). ' +
+        'Authentification : Bearer JWT via POST /v1/auth/login.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  SwaggerModule.setup(
+    'docs',
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
   );
 
   const port = process.env.PORT ?? 3000;

@@ -217,13 +217,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _glass('Niveau ${_lvl(m.levelMin)}–${_lvl(m.levelMax)}'),
-                        const SizedBox(width: 8),
                         _glass('${m.durationMin} min'),
-                        const SizedBox(width: 8),
                         _glass('${m.pricePerPlayerMad.toStringAsFixed(0)} MAD/pers.'),
+                        if (m.visibility == 'PRIVATE') _glass('🔒 Privé'),
                       ],
                     ),
                   ],

@@ -178,6 +178,7 @@ class PadelMatch {
     this.winnerIds = const [],
     this.scoreText,
     this.suggestionScore,
+    this.visibility = 'PUBLIC',
   });
 
   final String id;
@@ -193,6 +194,7 @@ class PadelMatch {
   final String? creatorId;
   final double? distanceM;
   final List<MatchParticipant> players;
+  final String visibility; // PUBLIC | PRIVATE
 
   /// Vainqueurs et score affiché (match PLAYED).
   final List<String> winnerIds;
@@ -234,6 +236,7 @@ class PadelMatch {
           : const [],
       scoreText: (j['score'] is Map) ? j['score']['score'] as String? : null,
       suggestionScore: (j['compatScore'] as num?)?.toInt(),
+      visibility: (j['visibility'] ?? 'PUBLIC') as String,
     );
   }
 }

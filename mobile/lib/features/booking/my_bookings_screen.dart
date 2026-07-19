@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -289,23 +290,51 @@ class _BookingCard extends ConsumerWidget {
               ),
             ),
           ],
-          // Réservation honorée → possibilité de noter le club
-          if (booking.status == 'COMPLETED' && booking.clubId != null) ...[
+          // Historique : noter le club + re-réserver en 1 clic
+          if (booking.clubId != null &&
+              (booking.status == 'COMPLETED' ||
+                  booking.status == 'CANCELLED' ||
+                  booking.endsAt.isBefore(DateTime.now()))) ...[
             const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _reviewClub(context, ref),
-                icon: const Icon(Icons.star_outline, size: 18),
-                label: const Text('Noter le club'),
-                style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF92600A)),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (booking.status == 'COMPLETED')
+                  TextButton.icon(
+                    onPressed: () => _reviewClub(context, ref),
+                    icon: const Icon(Icons.star_outline, size: 18),
+                    label: const Text('Noter le club'),
+                    style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF92600A)),
+                  ),
+                TextButton.icon(
+                  onPressed: () => _rebook(context, ref),
+                  icon: const Icon(Icons.replay, size: 18),
+                  label: const Text('Réserver à nouveau'),
+                ),
+              ],
             ),
           ],
         ],
       ),
     );
+  }
+
+  /// Re-réservation 1 clic : recharge le club puis ouvre sa grille de créneaux.
+  Future<void> _rebook(BuildContext context, WidgetRef ref) async {
+    try {
+      final club =
+          await ref.read(bookingRepositoryProvider).getClub(booking.clubId!);
+      if (context.mounted) {
+        context.push('/clubs/${club.id}', extra: club);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiErrorMessage(e))),
+        );
+      }
+    }
   }
 
   /// Avis sur le club (note 1-5 + commentaire) après une venue.

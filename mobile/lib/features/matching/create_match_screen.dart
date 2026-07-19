@@ -23,6 +23,7 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
   Club? _club;
   late DateTime _day;
   RangeValues _level = const RangeValues(2, 5);
+  bool _private = false;
   bool _busy = false;
 
   @override
@@ -41,6 +42,7 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
             durationMin: slot.durationMin,
             levelMin: _level.start,
             levelMax: _level.end,
+            private: _private,
           );
       ref.invalidate(nearbyMatchesProvider);
       if (mounted) {
@@ -169,7 +171,24 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+              SwitchListTile(
+                value: _private,
+                onChanged: (v) => setState(() => _private = v),
+                title: const Text('Match privé',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text(
+                  'Invisible dans la recherche — vos amis rejoignent via le lien de partage',
+                  style: TextStyle(fontSize: 12),
+                ),
+                secondary: Icon(
+                  _private ? Icons.lock_outline : Icons.public,
+                  color: _private ? AppColors.amber : AppColors.slate,
+                ),
+                contentPadding: EdgeInsets.zero,
+                activeTrackColor: AppColors.primary,
+              ),
+              const SizedBox(height: 14),
               _label('3 · Choisissez un créneau'),
               _DateStrip(
                 selected: _day,

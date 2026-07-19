@@ -115,6 +115,7 @@ class MatchingRepository {
     required int durationMin,
     required double levelMin,
     required double levelMax,
+    bool private = false,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>('/matches', data: {
       'courtId': courtId,
@@ -122,6 +123,8 @@ class MatchingRepository {
       'durationMin': durationMin,
       'levelMin': levelMin,
       'levelMax': levelMax,
+      // PRIVATE : invisible dans la recherche, accessible via le lien partagé
+      'visibility': private ? 'PRIVATE' : 'PUBLIC',
     });
     return PadelMatch.fromJson(res.data!);
   }
