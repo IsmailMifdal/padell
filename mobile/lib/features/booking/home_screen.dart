@@ -281,7 +281,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 116),
               child: Column(
                 children: [
                   if (me?.isOwner == true)
