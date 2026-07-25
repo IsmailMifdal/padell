@@ -68,7 +68,7 @@ class _SoftCardState extends State<SoftCard> {
 }
 
 /// Bouton principal en dégradé de marque (CTA majeurs).
-class GradientButton extends StatelessWidget {
+class GradientButton extends StatefulWidget {
   const GradientButton({
     super.key,
     required this.label,
@@ -85,57 +85,73 @@ class GradientButton extends StatelessWidget {
   final double height;
 
   @override
+  State<GradientButton> createState() => _GradientButtonState();
+}
+
+class _GradientButtonState extends State<GradientButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final disabled = onPressed == null || loading;
+    final disabled = widget.onPressed == null || widget.loading;
+    final button = Material(
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        height: widget.height,
+        decoration: BoxDecoration(
+          gradient: AppColors.heroGradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: InkWell(
+          onTap: disabled ? null : widget.onPressed,
+          onHighlightChanged: disabled
+              ? null
+              : (v) => setState(() => _pressed = v),
+          borderRadius: BorderRadius.circular(16),
+          child: Center(
+            child: widget.loading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.icon != null) ...[
+                        Icon(widget.icon, size: 20, color: Colors.white),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        widget.label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: disabled ? 0.6 : 1,
-      child: Material(
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          height: height,
-          decoration: BoxDecoration(
-            gradient: AppColors.heroGradient,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: InkWell(
-            onTap: disabled ? null : onPressed,
-            borderRadius: BorderRadius.circular(16),
-            child: Center(
-              child: loading
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(icon, size: 20, color: Colors.white),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: button,
       ),
     );
   }

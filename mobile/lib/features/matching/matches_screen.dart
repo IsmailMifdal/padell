@@ -8,6 +8,7 @@ import '../../core/location_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
+import '../../shared/staggered_fade_in.dart';
 import '../../shared/widgets.dart';
 import 'matching_providers.dart';
 
@@ -183,16 +184,20 @@ class MatchesScreen extends ConsumerWidget {
                               mainAxisExtent: 152,
                             ),
                             itemCount: list.length,
-                            itemBuilder: (context, i) =>
-                                _MatchCard(match: list[i]),
+                            itemBuilder: (context, i) => StaggeredFadeIn(
+                              index: i,
+                              child: _MatchCard(match: list[i]),
+                            ),
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
                             itemCount: list.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 14),
-                            itemBuilder: (context, i) =>
-                                _MatchCard(match: list[i]),
+                            itemBuilder: (context, i) => StaggeredFadeIn(
+                              index: i,
+                              child: _MatchCard(match: list[i]),
+                            ),
                           ),
                   );
                 },

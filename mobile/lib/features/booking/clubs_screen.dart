@@ -10,6 +10,7 @@ import '../../core/location_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
+import '../../shared/staggered_fade_in.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
 import '../notifications/notifications_screen.dart';
@@ -185,16 +186,20 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
                             mainAxisExtent: 248,
                           ),
                           itemCount: list.length,
-                          itemBuilder: (context, i) =>
-                              _ClubCard(club: list[i]),
+                          itemBuilder: (context, i) => StaggeredFadeIn(
+                            index: i,
+                            child: _ClubCard(club: list[i]),
+                          ),
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                           itemCount: list.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 16),
-                          itemBuilder: (context, i) =>
-                              _ClubCard(club: list[i]),
+                          itemBuilder: (context, i) => StaggeredFadeIn(
+                            index: i,
+                            child: _ClubCard(club: list[i]),
+                          ),
                         ),
                 ),
               );

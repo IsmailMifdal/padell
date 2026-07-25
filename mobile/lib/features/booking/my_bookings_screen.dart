@@ -8,6 +8,7 @@ import '../../core/api_client.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
+import '../../shared/staggered_fade_in.dart';
 import '../../shared/widgets.dart';
 import 'booking_providers.dart';
 import 'booking_repository.dart';
@@ -87,8 +88,10 @@ class MyBookingsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                     itemCount: list.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (context, i) =>
-                        _BookingCard(booking: list[i]),
+                    itemBuilder: (context, i) => StaggeredFadeIn(
+                      index: i,
+                      child: _BookingCard(booking: list[i]),
+                    ),
                   ),
                 );
               },
