@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
-import { Empty, ErrorState, Loading, PageHeader, StatusBadge } from '@/components/ui';
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StatusBadge,
+  useToast,
+} from '@/components/ui';
 
 const FILTERS = [
   { key: 'PENDING', label: 'En attente' },
@@ -18,6 +25,7 @@ export default function ClubsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -34,13 +42,15 @@ export default function ClubsPage() {
   async function act(
     id: string,
     fn: (id: string) => Promise<unknown>,
+    successLabel: string,
   ) {
     setBusy(id);
     try {
       await fn(id);
+      toast(successLabel);
       load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Action impossible');
+      toast(e instanceof ApiError ? e.message : 'Action impossible', 'error');
     } finally {
       setBusy(null);
     }
@@ -113,7 +123,7 @@ export default function ClubsPage() {
                         <button
                           className="btn btn-primary btn-sm"
                           disabled={busy === c.id}
-                          onClick={() => act(c.id, api.approveClub)}
+                          onClick={() => act(c.id, api.approveClub, 'Club approuvé')}
                         >
                           Approuver
                         </button>
@@ -122,7 +132,7 @@ export default function ClubsPage() {
                         <button
                           className="btn btn-danger btn-sm"
                           disabled={busy === c.id}
-                          onClick={() => act(c.id, api.rejectClub)}
+                          onClick={() => act(c.id, api.rejectClub, 'Club rejeté')}
                         >
                           Rejeter
                         </button>
@@ -131,7 +141,7 @@ export default function ClubsPage() {
                         <button
                           className="btn btn-danger btn-sm"
                           disabled={busy === c.id}
-                          onClick={() => act(c.id, api.suspendClub)}
+                          onClick={() => act(c.id, api.suspendClub, 'Club suspendu')}
                         >
                           Suspendre
                         </button>

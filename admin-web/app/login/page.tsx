@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiError, login } from '@/lib/api';
+import { ApiError, landingFor, login } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,8 +16,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(identifier, password);
-      router.push('/');
+      const data = await login(identifier, password);
+      router.push(landingFor(data.user));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Connexion impossible',

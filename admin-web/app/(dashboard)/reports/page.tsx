@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
-import { Empty, ErrorState, Loading, PageHeader, StatusBadge } from '@/components/ui';
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StatusBadge,
+  useToast,
+} from '@/components/ui';
 
 const FILTERS = [
   { key: 'OPEN', label: 'Ouverts' },
@@ -16,6 +23,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -29,13 +37,18 @@ export default function ReportsPage() {
 
   useEffect(load, [load]);
 
-  async function act(id: string, fn: (id: string) => Promise<unknown>) {
+  async function act(
+    id: string,
+    fn: (id: string) => Promise<unknown>,
+    successLabel: string,
+  ) {
     setBusy(id);
     try {
       await fn(id);
+      toast(successLabel);
       load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Action impossible');
+      toast(e instanceof ApiError ? e.message : 'Action impossible', 'error');
     } finally {
       setBusy(null);
     }
@@ -108,14 +121,14 @@ export default function ReportsPage() {
                           <button
                             className="btn btn-primary btn-sm"
                             disabled={busy === r.id}
-                            onClick={() => act(r.id, api.resolveReport)}
+                            onClick={() => act(r.id, api.resolveReport, 'Signalement résolu')}
                           >
                             Résoudre
                           </button>
                           <button
                             className="btn btn-sm"
                             disabled={busy === r.id}
-                            onClick={() => act(r.id, api.dismissReport)}
+                            onClick={() => act(r.id, api.dismissReport, 'Signalement rejeté')}
                           >
                             Rejeter
                           </button>

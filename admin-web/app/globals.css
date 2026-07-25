@@ -5,9 +5,11 @@
   --border: #e3e6ea;
   --text: #1a1d21;
   --text-muted: #6b7280;
-  --accent: #16a34a;
-  --accent-hover: #15803d;
-  --accent-soft: #dcfce7;
+  /* Émeraude de la marque (identique à l'app mobile) plutôt qu'un vert
+     générique — cohérence visuelle entre les trois produits. */
+  --accent: #0da271;
+  --accent-hover: #076b4b;
+  --accent-soft: #dcf5ea;
   --danger: #dc2626;
   --danger-soft: #fee2e2;
   --warning: #d97706;
@@ -28,9 +30,9 @@
     --border: #2b3038;
     --text: #e7e9ec;
     --text-muted: #9aa1ac;
-    --accent: #22c55e;
-    --accent-hover: #16a34a;
-    --accent-soft: #14321f;
+    --accent: #17c98a;
+    --accent-hover: #0da271;
+    --accent-soft: #123529;
     --danger: #f87171;
     --danger-soft: #3a1c1c;
     --warning: #fbbf24;
@@ -466,6 +468,177 @@ tbody tr:hover {
   color: var(--text-muted);
   font-size: 13px;
   margin-bottom: 24px;
+}
+
+/* ---------------------------------------------------------------- toasts */
+
+.toast-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.14);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 220px;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast-success {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+.toast-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.44);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 900;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 440px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.25);
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* --------------------------------------------------------- owner: sundries */
+
+.day-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 18px;
+}
+
+.day-chip {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.day-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.day-chip .d {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.hour-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hour-row:last-child {
+  border-bottom: none;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.switch .slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.switch input:checked + .slider {
+  background: var(--accent);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(16px);
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 720px) {

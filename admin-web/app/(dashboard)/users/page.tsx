@@ -2,7 +2,14 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
-import { Empty, ErrorState, Loading, PageHeader, StatusBadge } from '@/components/ui';
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StatusBadge,
+  useToast,
+} from '@/components/ui';
 
 export default function UsersPage() {
   const [query, setQuery] = useState('');
@@ -12,6 +19,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -33,13 +41,18 @@ export default function UsersPage() {
     setSearch(query.trim());
   }
 
-  async function act(id: string, fn: (id: string) => Promise<unknown>) {
+  async function act(
+    id: string,
+    fn: (id: string) => Promise<unknown>,
+    successLabel: string,
+  ) {
     setBusy(id);
     try {
       await fn(id);
+      toast(successLabel);
       load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Action impossible');
+      toast(e instanceof ApiError ? e.message : 'Action impossible', 'error');
     } finally {
       setBusy(null);
     }
@@ -125,14 +138,14 @@ export default function UsersPage() {
                           <button
                             className="btn btn-sm"
                             disabled={busy === u.id}
-                            onClick={() => act(u.id, api.suspendUser)}
+                            onClick={() => act(u.id, api.suspendUser, 'Compte suspendu')}
                           >
                             Suspendre
                           </button>
                           <button
                             className="btn btn-danger btn-sm"
                             disabled={busy === u.id}
-                            onClick={() => act(u.id, api.banUser)}
+                            onClick={() => act(u.id, api.banUser, 'Compte banni')}
                           >
                             Bannir
                           </button>
@@ -141,7 +154,7 @@ export default function UsersPage() {
                         <button
                           className="btn btn-primary btn-sm"
                           disabled={busy === u.id}
-                          onClick={() => act(u.id, api.reactivateUser)}
+                          onClick={() => act(u.id, api.reactivateUser, 'Compte réactivé')}
                         >
                           Réactiver
                         </button>

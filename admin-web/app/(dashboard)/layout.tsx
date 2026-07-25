@@ -3,14 +3,22 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AdminUser, clearSession, getToken, getUser } from '@/lib/api';
+import {
+  ChartBar,
+  Racquet,
+  Users,
+  Flag,
+  Scroll,
+  SignOut,
+} from '@phosphor-icons/react';
+import { AdminUser, clearSession, getToken, getUser, isAdmin } from '@/lib/api';
 
 const NAV = [
-  { href: '/', label: 'Tableau de bord', icon: '📊' },
-  { href: '/clubs', label: 'Clubs', icon: '🏟️' },
-  { href: '/users', label: 'Utilisateurs', icon: '👥' },
-  { href: '/reports', label: 'Signalements', icon: '🚩' },
-  { href: '/audit', label: "Journal d'audit", icon: '📜' },
+  { href: '/', label: 'Tableau de bord', Icon: ChartBar },
+  { href: '/clubs', label: 'Clubs', Icon: Racquet },
+  { href: '/users', label: 'Utilisateurs', Icon: Users },
+  { href: '/reports', label: 'Signalements', Icon: Flag },
+  { href: '/audit', label: "Journal d'audit", Icon: Scroll },
 ];
 
 export default function DashboardLayout({
@@ -28,7 +36,12 @@ export default function DashboardLayout({
       router.replace('/login');
       return;
     }
-    setUser(getUser());
+    const u = getUser();
+    if (!isAdmin(u)) {
+      router.replace('/owner');
+      return;
+    }
+    setUser(u);
     setReady(true);
   }, [router]);
 
@@ -54,7 +67,7 @@ export default function DashboardLayout({
               href={item.href}
               className={`nav-link ${active ? 'active' : ''}`}
             >
-              <span className="icon">{item.icon}</span>
+              <item.Icon size={18} weight={active ? 'fill' : 'regular'} />
               {item.label}
             </Link>
           );
@@ -71,6 +84,7 @@ export default function DashboardLayout({
             style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
             onClick={logout}
           >
+            <SignOut size={14} />
             Déconnexion
           </button>
         </div>
