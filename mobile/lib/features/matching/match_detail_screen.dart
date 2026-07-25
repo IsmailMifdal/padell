@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/api_client.dart';
+import '../../core/haptics.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
@@ -30,6 +31,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     setState(() => _busy = true);
     try {
       await action();
+      Haptics.confirm();
       ref.invalidate(matchDetailProvider(widget.matchId));
       ref.invalidate(nearbyMatchesProvider);
       if (mounted) {
@@ -38,6 +40,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         );
       }
     } catch (e) {
+      Haptics.warn();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(apiErrorMessage(e))),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/haptics.dart';
 import '../../core/palette.dart';
 import '../../shared/widgets.dart';
 import 'owner_repository.dart';
@@ -555,11 +556,15 @@ class _PricingSection extends ConsumerWidget {
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
+                      // Cible tactile 44×44 par défaut (pas de visualDensity
+                      // compact) même si l'icône visible reste discrète.
                       IconButton(
-                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.delete_outline,
                             size: 18, color: AppColors.danger),
-                        onPressed: () => _deleteRule(context, ref, r),
+                        onPressed: () {
+                          Haptics.warn();
+                          _deleteRule(context, ref, r);
+                        },
                       ),
                     ],
                   ),

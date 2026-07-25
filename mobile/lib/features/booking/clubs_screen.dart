@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/api_client.dart';
+import '../../core/haptics.dart';
 import '../../core/location_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
@@ -295,12 +296,12 @@ class _Header extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  // Notifications
+                  // Notifications (cible tactile 44×44 — WCAG/HIG)
                   GestureDetector(
                     onTap: () => context.push('/notifications'),
                     child: Container(
-                      height: 42,
-                      width: 42,
+                      height: 44,
+                      width: 44,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(14),
@@ -723,24 +724,34 @@ class _ClubCard extends ConsumerWidget {
                             ],
                           ),
                         ),
-                      // Cœur favori
+                      // Cœur favori — cible tactile 44×44, visuel 30×30
                       GestureDetector(
-                        onTap: toggleFavorite,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            size: 16,
-                            color: isFavorite
-                                ? AppColors.danger
-                                : AppColors.slate,
+                        onTap: () {
+                          Haptics.select();
+                          toggleFavorite();
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: SizedBox(
+                          height: 44,
+                          width: 44,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 16,
+                                color: isFavorite
+                                    ? AppColors.danger
+                                    : AppColors.slate,
+                              ),
+                            ),
                           ),
                         ),
                       ),

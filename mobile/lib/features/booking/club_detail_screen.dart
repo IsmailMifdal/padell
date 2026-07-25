@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
+import '../../core/haptics.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
@@ -671,12 +672,18 @@ class _ConfirmSheet extends StatelessWidget {
           GradientButton(
             label: 'Payer en ligne (CMI)',
             icon: Icons.credit_card,
-            onPressed: () => Navigator.pop(context, 'ONLINE'),
+            onPressed: () {
+              Haptics.confirm();
+              Navigator.pop(context, 'ONLINE');
+            },
           ),
           if (club.paymentOnSiteAllowed) ...[
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context, 'ON_SITE'),
+              onPressed: () {
+                Haptics.confirm();
+                Navigator.pop(context, 'ON_SITE');
+              },
               icon: const Icon(Icons.storefront_outlined, size: 20),
               label: const Text('Payer sur place'),
               style: OutlinedButton.styleFrom(
