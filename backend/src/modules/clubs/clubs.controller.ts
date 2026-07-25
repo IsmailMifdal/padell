@@ -12,8 +12,10 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { ClubsService } from './clubs.service';
 import { CreateClubDto, UpdateClubDto } from './dto/create-club.dto';
 import { CreateCourtDto, UpdateCourtDto } from './dto/court.dto';
@@ -80,6 +82,7 @@ export class ClubsController {
     return this.clubs.create(user, dto);
   }
 
+  @Roles(Role.OWNER)
   @Patch(':id')
   update(
     @CurrentUser() user: AuthUser,
@@ -89,6 +92,7 @@ export class ClubsController {
     return this.clubs.update(user, id, dto);
   }
 
+  @Roles(Role.OWNER)
   @Post(':id/courts')
   addCourt(
     @CurrentUser() user: AuthUser,
@@ -98,6 +102,7 @@ export class ClubsController {
     return this.clubs.addCourt(user, id, dto);
   }
 
+  @Roles(Role.OWNER)
   @Patch(':id/courts/:courtId')
   updateCourt(
     @CurrentUser() user: AuthUser,
@@ -108,6 +113,7 @@ export class ClubsController {
     return this.clubs.updateCourt(user, id, courtId, dto);
   }
 
+  @Roles(Role.OWNER)
   @Put(':id/opening-hours')
   setOpeningHours(
     @CurrentUser() user: AuthUser,
@@ -117,6 +123,7 @@ export class ClubsController {
     return this.clubs.setOpeningHours(user, id, dto);
   }
 
+  @Roles(Role.OWNER)
   @Post(':id/courts/:courtId/pricing')
   addPricingRule(
     @CurrentUser() user: AuthUser,
@@ -127,6 +134,7 @@ export class ClubsController {
     return this.clubs.addPricingRule(user, id, courtId, dto);
   }
 
+  @Roles(Role.OWNER)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id/pricing/:ruleId')
   deletePricingRule(

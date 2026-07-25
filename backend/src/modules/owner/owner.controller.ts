@@ -8,7 +8,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { IsOptional, IsString, MaxLength, Matches } from 'class-validator';
+import { Role } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { ClubsService } from '../clubs/clubs.service';
 import { PaymentsService } from '../payments/payments.service';
 import {
@@ -28,6 +30,7 @@ class OwnerCancelDto {
 }
 
 /** Espace propriétaire : gestion opérationnelle d'un club. */
+@Roles(Role.OWNER)
 @Controller('owner/clubs/:clubId')
 export class OwnerController {
   constructor(

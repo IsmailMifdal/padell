@@ -9,10 +9,14 @@ class TokenStorage {
   static const _kAccess = 'access_token';
   static const _kRefresh = 'refresh_token';
   static const _kUser = 'user_json';
+  static const _kMode = 'active_mode';
 
   Future<String?> get accessToken => _storage.read(key: _kAccess);
   Future<String?> get refreshToken => _storage.read(key: _kRefresh);
   Future<String?> get userJson => _storage.read(key: _kUser);
+  Future<String?> get mode => _storage.read(key: _kMode);
+
+  Future<void> saveMode(String mode) => _storage.write(key: _kMode, value: mode);
 
   Future<void> save({
     required String accessToken,
@@ -33,5 +37,6 @@ class TokenStorage {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
     await _storage.delete(key: _kUser);
+    await _storage.delete(key: _kMode);
   }
 }

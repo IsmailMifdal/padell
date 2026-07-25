@@ -24,6 +24,7 @@ class AuthRepository {
     required String firstName,
     required String lastName,
     String? city,
+    String? intent,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/register', data: {
       'email': email,
@@ -31,6 +32,7 @@ class AuthRepository {
       'firstName': firstName,
       'lastName': lastName,
       if (city != null && city.isNotEmpty) 'city': city,
+      if (intent != null) 'intent': intent,
     });
     return _persist(res.data!);
   }

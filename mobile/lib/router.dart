@@ -7,6 +7,7 @@ import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/otp_screen.dart';
 import 'features/auth/register_screen.dart';
+import 'features/auth/role_gate_screen.dart';
 import 'features/booking/club_detail_screen.dart';
 import 'features/booking/home_screen.dart';
 import 'features/chat/chat_screen.dart';
@@ -35,17 +36,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Pendant la restauration de session, on ne redirige pas.
       if (auth.stage == AuthStage.unknown) return null;
 
-      final loggingIn = state.matchedLocation == '/login' ||
+      final loggingIn = state.matchedLocation == '/welcome' ||
+          state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
           state.matchedLocation == '/otp' ||
           state.matchedLocation == '/forgot';
 
-      if (!auth.isAuthenticated) return loggingIn ? null : '/login';
+      if (!auth.isAuthenticated) return loggingIn ? null : '/welcome';
       if (loggingIn) return '/';
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+      GoRoute(
+        path: '/',
+        builder: (_, __) => Consumer(
+          builder: (context, ref, __) {
+            final mode = ref.watch(
+              authControllerProvider.select((s) => s.mode),
+            );
+            return mode == AppMode.owner
+                ? const OwnerScreen()
+                : const HomeScreen();
+          },
+        ),
+      ),
+      GoRoute(path: '/welcome', builder: (_, __) => const RoleGateScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/otp', builder: (_, __) => const OtpScreen()),

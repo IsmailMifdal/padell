@@ -8,6 +8,7 @@ import '../../core/api_client.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
+import '../auth/auth_controller.dart';
 import 'owner_config_tab.dart';
 import 'owner_repository.dart';
 
@@ -19,7 +20,43 @@ class OwnerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final clubs = ref.watch(myClubsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Espace club')),
+      appBar: AppBar(
+        title: const Text('Espace propriétaire'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              if (v == 'switch') {
+                ref
+                    .read(authControllerProvider.notifier)
+                    .switchMode(AppMode.player);
+                context.go('/');
+              } else if (v == 'logout') {
+                ref.read(authControllerProvider.notifier).logout();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'switch',
+                child: ListTile(
+                  leading: Icon(Icons.sports_tennis_outlined),
+                  title: Text('Passer en mode joueur'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  leading: Icon(Icons.logout, color: AppColors.danger),
+                  title: Text('Déconnexion',
+                      style: TextStyle(color: AppColors.danger)),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/owner/create'),
         backgroundColor: AppColors.primary,

@@ -132,6 +132,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final mode = ref.watch(pendingAuthModeProvider);
+    final isOwner = mode == AppMode.owner;
     return Scaffold(
       body: PageContainer(
         maxWidth: 560,
@@ -143,6 +145,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: const BoxDecoration(gradient: AppColors.heroGradient),
             child: Stack(
               children: [
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: SafeArea(
+                    bottom: false,
+                    child: IconButton(
+                      onPressed: () => context.go('/welcome'),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
+                    ),
+                  ),
+                ),
                 Positioned(
                   right: -60,
                   top: -40,
@@ -171,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   right: -10,
                   bottom: -26,
                   child: Icon(
-                    Icons.sports_tennis,
+                    isOwner ? Icons.stadium_outlined : Icons.sports_tennis,
                     size: 130,
                     color: Colors.white.withValues(alpha: 0.10),
                   ),
@@ -215,12 +229,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               shape: BoxShape.circle,
                             ),
                           ),
+                          if (isOwner) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'PRO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 26),
-                      const Text(
-                        'Jouez.\nRéservez.\nProgressez.',
-                        style: TextStyle(
+                      Text(
+                        isOwner
+                            ? 'Gérez votre club.\nSimplement.\nEfficacement.'
+                            : 'Jouez.\nRéservez.\nProgressez.',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 34,
                           height: 1.12,
@@ -230,7 +266,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Le padel au Maroc, à portée de main.',
+                        isOwner
+                            ? 'Terrains, réservations et tarifs, au même endroit.'
+                            : 'Le padel au Maroc, à portée de main.',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.88),
                           fontSize: 14,
@@ -261,9 +299,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Connexion',
-                          style: TextStyle(
+                        Text(
+                          isOwner
+                              ? 'Connexion — Espace propriétaire'
+                              : 'Connexion',
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                           ),

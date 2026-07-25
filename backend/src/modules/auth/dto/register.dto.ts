@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsPhoneNumber,
@@ -41,4 +42,9 @@ export class RegisterDto {
   @IsString()
   @MaxLength(80)
   city?: string;
+
+  /** Espace choisi à l'inscription : PLAYER (défaut) ou OWNER (accès direct à l'espace propriétaire). */
+  @IsOptional()
+  @IsIn(['PLAYER', 'OWNER'])
+  intent?: 'PLAYER' | 'OWNER';
 }

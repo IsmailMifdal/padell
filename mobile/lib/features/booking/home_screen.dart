@@ -288,7 +288,12 @@ class ProfileScreen extends ConsumerWidget {
                     _ProfileTile(
                       icon: Icons.stadium_outlined,
                       label: t['clubSpace'],
-                      onTap: () => context.push('/owner'),
+                      onTap: () {
+                        ref
+                            .read(authControllerProvider.notifier)
+                            .switchMode(AppMode.owner);
+                        context.go('/');
+                      },
                     )
                   else
                     // Devenir partenaire : référencer son club

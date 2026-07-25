@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
 import 'auth_controller.dart';
@@ -56,8 +57,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isOwner = ref.watch(pendingAuthModeProvider) == AppMode.owner;
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer un compte')),
+      appBar: AppBar(
+        title: Text(isOwner
+            ? 'Créer un compte propriétaire'
+            : 'Créer un compte'),
+      ),
       body: SafeArea(
         child: PageContainer(
           maxWidth: 520,
@@ -68,6 +74,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (isOwner)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.stadium_outlined,
+                            color: AppColors.primaryDark, size: 20),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Vous pourrez ajouter votre club juste après.',
+                            style: TextStyle(
+                                color: AppColors.primaryDark, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (_error != null) ErrorBanner(_error!),
                 Row(
                   children: [

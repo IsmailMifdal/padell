@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OtpPurpose, User, UserStatus } from '@prisma/client';
+import { OtpPurpose, Role, User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -79,6 +79,10 @@ export class AuthService {
         email: dto.email ?? null,
         phone: dto.phone ?? null,
         passwordHash,
+        // Espace propriétaire choisi à l'inscription : rôle accordé
+        // immédiatement (même niveau de confiance que l'auto-promotion
+        // existante lors de la création d'un club, cf. clubs.service.create).
+        roles: dto.intent === 'OWNER' ? [Role.PLAYER, Role.OWNER] : undefined,
         profile: {
           create: {
             firstName: dto.firstName,
