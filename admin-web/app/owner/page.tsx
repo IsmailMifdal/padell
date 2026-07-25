@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CaretRight, Racquet } from '@phosphor-icons/react';
 import { ApiError, ownerApi } from '@/lib/api';
-import { Empty, ErrorState, Loading, PageHeader, StatusBadge } from '@/components/ui';
+import { Empty, ErrorState, PageHeader, StatusBadge } from '@/components/ui';
 
 export default function OwnerOverviewPage() {
   const router = useRouter();
@@ -29,15 +29,25 @@ export default function OwnerOverviewPage() {
 
       {error && <ErrorState message={error} />}
       {loading ? (
-        <Loading />
+        <div style={{ display: 'grid', gap: 12 }}>
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div className="card card-pad" key={i} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <div className="skeleton-block" style={{ height: 44, width: 44, borderRadius: 12 }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton-block" style={{ height: 14, width: '40%', marginBottom: 8 }} />
+                <div className="skeleton-block" style={{ height: 12, width: '25%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : clubs.length === 0 ? (
-        <Empty label="Aucun club — ajoutez votre club depuis l'application mobile." />
+        <Empty icon={Racquet} label="Aucun club — ajoutez votre club depuis l'application mobile." />
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {clubs.map((c) => (
             <div
               key={c.id}
-              className="card card-pad"
+              className="card card-pad card-hover"
               style={{
                 display: 'flex',
                 alignItems: 'center',

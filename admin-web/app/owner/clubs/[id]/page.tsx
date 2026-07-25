@@ -8,6 +8,13 @@ import {
   QrCode,
   ArrowLeft,
   Trash,
+  CalendarX,
+  Tag,
+  CalendarCheck,
+  Wallet,
+  XCircle,
+  HandCoins,
+  Icon,
 } from '@phosphor-icons/react';
 import { ApiError, ownerApi } from '@/lib/api';
 import {
@@ -17,6 +24,7 @@ import {
   Modal,
   PageHeader,
   StatusBadge,
+  TableSkeleton,
   useToast,
 } from '@/components/ui';
 
@@ -168,10 +176,10 @@ function CalendarTab({ club, toast }: { club: any; toast: (m: string, k?: 'succe
     <>
       {stats && (
         <div className="kpi-grid">
-          <Kpi label="Réservations (30 j)" value={stats.totalBookings} />
-          <Kpi label="Revenus (30 j)" value={money(stats.revenueMad)} />
-          <Kpi label="Annulations (30 j)" value={stats.cancelledBookings} />
-          <Kpi label="Résas manuelles" value={`${stats.manualShare} %`} />
+          <Kpi icon={CalendarCheck} label="Réservations (30 j)" value={stats.totalBookings} />
+          <Kpi icon={Wallet} label="Revenus (30 j)" value={money(stats.revenueMad)} />
+          <Kpi icon={XCircle} label="Annulations (30 j)" value={stats.cancelledBookings} />
+          <Kpi icon={HandCoins} label="Résas manuelles" value={`${stats.manualShare} %`} />
         </div>
       )}
 
@@ -212,9 +220,9 @@ function CalendarTab({ club, toast }: { club: any; toast: (m: string, k?: 'succe
       </div>
 
       {loading ? (
-        <Loading />
+        <TableSkeleton rows={3} cols={4} />
       ) : bookings.length === 0 ? (
-        <Empty label="Aucune réservation ce jour." />
+        <Empty icon={CalendarX} label="Aucune réservation ce jour." />
       ) : (
         <div className="table-wrap">
           <table>
@@ -320,9 +328,22 @@ function CalendarTab({ club, toast }: { club: any; toast: (m: string, k?: 'succe
   );
 }
 
-function Kpi({ label, value }: { label: string; value: number | string }) {
+function Kpi({
+  icon: IconCmp,
+  label,
+  value,
+}: {
+  icon?: Icon;
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="kpi">
+      {IconCmp && (
+        <div className="kpi-icon">
+          <IconCmp size={17} weight="bold" />
+        </div>
+      )}
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value}</div>
     </div>
@@ -769,7 +790,7 @@ function PricingSection({
       </div>
 
       {(court?.pricingRules ?? []).length === 0 ? (
-        <Empty label="Aucune règle tarifaire pour ce terrain." />
+        <Empty icon={Tag} label="Aucune règle tarifaire pour ce terrain." />
       ) : (
         <div className="table-wrap" style={{ marginBottom: 16 }}>
           <table>

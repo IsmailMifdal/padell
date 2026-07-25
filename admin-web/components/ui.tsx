@@ -7,7 +7,7 @@ import {
   useContext,
   useState,
 } from 'react';
-import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react';
+import { CheckCircle, Icon, Tray, WarningCircle, X } from '@phosphor-icons/react';
 
 // ---------------------------------------------------------------- toasts
 
@@ -104,8 +104,46 @@ export function ErrorState({ message }: { message: string }) {
   return <div className="alert alert-error">{message}</div>;
 }
 
-export function Empty({ label }: { label: string }) {
-  return <div className="state">{label}</div>;
+export function Empty({ label, icon: IconCmp = Tray }: { label: string; icon?: Icon }) {
+  return (
+    <div className="state">
+      <IconCmp size={30} style={{ marginBottom: 8, opacity: 0.5 }} />
+      <div>{label}</div>
+    </div>
+  );
+}
+
+/** Lignes de tableau en chargement (remplace le spinner générique). */
+export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="table-wrap">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div className="skeleton-row" key={i}>
+          {Array.from({ length: cols }).map((_, j) => (
+            <div
+              key={j}
+              className="skeleton-block"
+              style={{ height: 14, flex: j === 0 ? 2 : 1 }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Cartes KPI en chargement. */
+export function KpiSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="kpi-grid">
+      {Array.from({ length: count }).map((_, i) => (
+        <div className="kpi" key={i}>
+          <div className="skeleton-block" style={{ height: 12, width: '60%', marginBottom: 12 }} />
+          <div className="skeleton-block" style={{ height: 24, width: '40%' }} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function PageHeader({

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
+import { Flag } from '@phosphor-icons/react';
 import {
   Empty,
   ErrorState,
-  Loading,
   PageHeader,
   StatusBadge,
+  TableSkeleton,
   useToast,
 } from '@/components/ui';
 
@@ -77,9 +78,9 @@ export default function ReportsPage() {
 
       {error && <ErrorState message={error} />}
       {loading ? (
-        <Loading />
+        <TableSkeleton rows={4} cols={6} />
       ) : reports.length === 0 ? (
-        <Empty label="Aucun signalement." />
+        <Empty icon={Flag} label="Aucun signalement." />
       ) : (
         <div className="table-wrap">
           <table>

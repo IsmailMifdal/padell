@@ -2,12 +2,13 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
+import { UsersThree } from '@phosphor-icons/react';
 import {
   Empty,
   ErrorState,
-  Loading,
   PageHeader,
   StatusBadge,
+  TableSkeleton,
   useToast,
 } from '@/components/ui';
 
@@ -90,9 +91,9 @@ export default function UsersPage() {
 
       {error && <ErrorState message={error} />}
       {loading ? (
-        <Loading />
+        <TableSkeleton rows={6} cols={6} />
       ) : users.length === 0 ? (
-        <Empty label="Aucun utilisateur trouvé." />
+        <Empty icon={UsersThree} label="Aucun utilisateur trouvé." />
       ) : (
         <div className="table-wrap">
           <table>

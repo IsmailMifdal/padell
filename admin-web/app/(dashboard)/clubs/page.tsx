@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
+import { Racquet } from '@phosphor-icons/react';
 import {
   Empty,
   ErrorState,
-  Loading,
   PageHeader,
   StatusBadge,
+  TableSkeleton,
   useToast,
 } from '@/components/ui';
 
@@ -79,9 +80,9 @@ export default function ClubsPage() {
 
       {error && <ErrorState message={error} />}
       {loading ? (
-        <Loading />
+        <TableSkeleton rows={4} cols={6} />
       ) : clubs.length === 0 ? (
-        <Empty label="Aucun club dans cette catégorie." />
+        <Empty icon={Racquet} label="Aucun club dans cette catégorie." />
       ) : (
         <div className="table-wrap">
           <table>

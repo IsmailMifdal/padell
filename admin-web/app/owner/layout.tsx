@@ -40,18 +40,24 @@ export default function OwnerLayout({
     <div className="shell">
       <aside className="sidebar">
         <Link href="/owner" className="brand">
-          🎾 Espace propriétaire
+          <span className="brand-mark">🎾</span>
+          Espace pro
         </Link>
         <Link href="/owner" className="nav-link active">
           <Racquet size={18} weight="fill" />
           Mes clubs
         </Link>
         <div className="sidebar-footer">
-          <div style={{ padding: '4px 10px', fontSize: 12 }}>
-            <div style={{ fontWeight: 600 }}>
-              {user ? `${user.firstName} ${user.lastName}` : ''}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
+            <div className="avatar">{user?.firstName?.[0]?.toUpperCase() ?? '?'}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user ? `${user.firstName} ${user.lastName}` : ''}
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.email}
+              </div>
             </div>
-            <div style={{ color: 'var(--text-muted)' }}>{user?.email}</div>
           </div>
           <button
             className="btn btn-sm"

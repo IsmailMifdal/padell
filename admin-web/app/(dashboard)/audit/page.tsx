@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
-import { Empty, ErrorState, Loading, PageHeader } from '@/components/ui';
+import { Scroll } from '@phosphor-icons/react';
+import { Empty, ErrorState, PageHeader, TableSkeleton } from '@/components/ui';
 
 export default function AuditPage() {
   const [page, setPage] = useState(1);
@@ -31,9 +32,9 @@ export default function AuditPage() {
 
       {error && <ErrorState message={error} />}
       {loading ? (
-        <Loading />
+        <TableSkeleton rows={5} cols={4} />
       ) : logs.length === 0 ? (
-        <Empty label="Aucune entrée." />
+        <Empty icon={Scroll} label="Aucune entrée." />
       ) : (
         <>
           <div className="table-wrap">
