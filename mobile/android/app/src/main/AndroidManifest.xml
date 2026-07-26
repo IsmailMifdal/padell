@@ -4,6 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Rappels de match. POST_NOTIFICATIONS est obligatoire depuis
+         Android 13 : sans elle, la demande d'autorisation est ignorée
+         et aucune notification ne s'affiche. RECEIVE_BOOT_COMPLETED
+         permet aux rappels déjà programmés de survivre à un redémarrage. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="Padel"
         android:name="${applicationName}"
