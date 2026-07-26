@@ -34,6 +34,235 @@ export class AdminService {
     });
   }
 
+  // ---------------------------------------------------------------- overview
+
+  /**
+   * Vue d'ensemble du tableau de bord : KPI comparés à la période précédente,
+   * série journalière, top clubs, activité récente et file d'actions à traiter.
+   * Un seul aller-retour réseau pour toute la page d'accueil.
+   */
+  async overview(days = 30) {
+    const now = new Date();
+    const dayMs = 24 * 3600 * 1000;
+    const start = new Date(now.getTime() - days * dayMs);
+    // Période immédiatement précédente, de même longueur (base des deltas)
+    const prevStart = new Date(start.getTime() - days * dayMs);
+
+    const [
+      payments,
+      prevPayments,
+      bookings,
+      prevBookings,
+      signups,
+      prevSignups,
+      matches,
+      prevMatches,
+      totalUsers,
+      clubsByStatus,
+      pendingClubs,
+      openReports,
+      recentClubs,
+      recentUsers,
+    ] = await this.prisma.$transaction([
+      this.prisma.payment.findMany({
+        where: { status: PaymentStatus.PAID, createdAt: { gte: start } },
+        select: { amountMad: true, commissionMad: true, createdAt: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: PaymentStatus.PAID,
+          createdAt: { gte: prevStart, lt: start },
+        },
+        _sum: { amountMad: true, commissionMad: true },
+      }),
+      this.prisma.booking.findMany({
+        where: {
+          createdAt: { gte: start },
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
+        select: {
+          createdAt: true,
+          priceMad: true,
+          court: { select: { club: { select: { id: true, name: true, city: true } } } },
+        },
+      }),
+      this.prisma.booking.count({
+        where: {
+          createdAt: { gte: prevStart, lt: start },
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: start } },
+        select: { createdAt: true },
+      }),
+      this.prisma.user.count({ where: { createdAt: { gte: prevStart, lt: start } } }),
+      this.prisma.match.count({
+        where: { status: MatchStatus.CONFIRMED, createdAt: { gte: start } },
+      }),
+      this.prisma.match.count({
+        where: {
+          status: MatchStatus.CONFIRMED,
+          createdAt: { gte: prevStart, lt: start },
+        },
+      }),
+      this.prisma.user.count({ where: { status: { not: UserStatus.DELETED } } }),
+      this.prisma.club.groupBy({ by: ['status'], _count: true, orderBy: { status: 'asc' } }),
+      this.prisma.club.findMany({
+        where: { status: ClubStatus.PENDING },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          createdAt: true,
+          owner: { select: { email: true, phone: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 5,
+      }),
+      this.prisma.report.findMany({
+        where: { status: ReportStatus.OPEN },
+        select: { id: true, reason: true, targetType: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+        take: 5,
+      }),
+      this.prisma.club.findMany({
+        select: { id: true, name: true, city: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+      this.prisma.user.findMany({
+        select: {
+          id: true,
+          createdAt: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+    ]);
+
+    // ---- Série journalière (un point par jour, trous remplis à zéro) -------
+    const key = (d: Date) => d.toISOString().slice(0, 10);
+    const buckets = new Map<string, { revenueMad: number; bookings: number; signups: number }>();
+    for (let i = days - 1; i >= 0; i--) {
+      buckets.set(key(new Date(now.getTime() - i * dayMs)), {
+        revenueMad: 0,
+        bookings: 0,
+        signups: 0,
+      });
+    }
+    for (const p of payments) {
+      const b = buckets.get(key(p.createdAt));
+      if (b) b.revenueMad += Number(p.amountMad);
+    }
+    for (const b of bookings) {
+      const slot = buckets.get(key(b.createdAt));
+      if (slot) slot.bookings += 1;
+    }
+    for (const u of signups) {
+      const slot = buckets.get(key(u.createdAt));
+      if (slot) slot.signups += 1;
+    }
+    const series = [...buckets.entries()].map(([date, v]) => ({
+      date,
+      revenueMad: Math.round(v.revenueMad * 100) / 100,
+      bookings: v.bookings,
+      signups: v.signups,
+    }));
+
+    // ---- Top clubs sur la période (chiffre d'affaires des réservations) ----
+    const byClub = new Map<
+      string,
+      { id: string; name: string; city: string; revenueMad: number; bookings: number }
+    >();
+    for (const b of bookings) {
+      const club = b.court?.club;
+      if (!club) continue;
+      const entry = byClub.get(club.id) ?? {
+        id: club.id,
+        name: club.name,
+        city: club.city,
+        revenueMad: 0,
+        bookings: 0,
+      };
+      entry.revenueMad += Number(b.priceMad);
+      entry.bookings += 1;
+      byClub.set(club.id, entry);
+    }
+    const topClubs = [...byClub.values()]
+      .map((c) => ({ ...c, revenueMad: Math.round(c.revenueMad * 100) / 100 }))
+      .sort((a, b) => b.revenueMad - a.revenueMad)
+      .slice(0, 5);
+
+    // ---- Activité récente (flux fusionné, le plus récent d'abord) ----------
+    const activity = [
+      ...recentUsers.map((u) => ({
+        type: 'USER' as const,
+        at: u.createdAt,
+        label: u.profile ? `${u.profile.firstName} ${u.profile.lastName}` : 'Nouveau compte',
+        sub: 'Inscription',
+      })),
+      ...recentClubs.map((c) => ({
+        type: 'CLUB' as const,
+        at: c.createdAt,
+        label: c.name,
+        sub: `Club ajouté · ${c.city}`,
+      })),
+    ]
+      .sort((a, b) => b.at.getTime() - a.at.getTime())
+      .slice(0, 8);
+
+    const revenue = payments.reduce((s, p) => s + Number(p.amountMad), 0);
+    const commission = payments.reduce((s, p) => s + Number(p.commissionMad), 0);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    /** Variation en % vs période précédente ; null si pas de base de comparaison. */
+    const delta = (current: number, previous: number): number | null =>
+      previous === 0 ? null : Math.round(((current - previous) / previous) * 1000) / 10;
+
+    const prevRevenue = Number(prevPayments._sum.amountMad ?? 0);
+    const prevCommission = Number(prevPayments._sum.commissionMad ?? 0);
+
+    return {
+      days,
+      kpis: {
+        revenueMad: {
+          value: round2(revenue),
+          previous: round2(prevRevenue),
+          deltaPct: delta(revenue, prevRevenue),
+        },
+        commissionMad: {
+          value: round2(commission),
+          previous: round2(prevCommission),
+          deltaPct: delta(commission, prevCommission),
+        },
+        bookings: {
+          value: bookings.length,
+          previous: prevBookings,
+          deltaPct: delta(bookings.length, prevBookings),
+        },
+        signups: {
+          value: signups.length,
+          previous: prevSignups,
+          deltaPct: delta(signups.length, prevSignups),
+        },
+        matches: {
+          value: matches,
+          previous: prevMatches,
+          deltaPct: delta(matches, prevMatches),
+        },
+      },
+      totals: {
+        users: totalUsers,
+        clubs: Object.fromEntries(clubsByStatus.map((c) => [c.status, c._count])),
+      },
+      series,
+      topClubs,
+      activity,
+      queue: { pendingClubs, openReports },
+    };
+  }
+
   // -------------------------------------------------------------------- KPIs
 
   async kpis() {

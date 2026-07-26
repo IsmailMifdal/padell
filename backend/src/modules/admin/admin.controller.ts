@@ -36,6 +36,13 @@ export class AdminController {
     return this.admin.kpis();
   }
 
+  /** Vue d'ensemble du tableau de bord (période paramétrable : 7 / 30 / 90 j). */
+  @Get('overview')
+  overview(@Query('days') days?: string) {
+    const parsed = Number(days) || 30;
+    return this.admin.overview(Math.min(Math.max(parsed, 1), 365));
+  }
+
   // Clubs : validation / rejet / suspension
   @Get('clubs')
   listClubs(@Query() query: ListClubsQuery) {

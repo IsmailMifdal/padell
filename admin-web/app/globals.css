@@ -16,6 +16,16 @@
   --warning-soft: #fef3c7;
   --info: #2563eb;
   --info-soft: #dbeafe;
+  /* Jetons data-viz — valeurs validées par scripts/validate_palette.js
+     (bande de clarté, plancher de chroma, contraste ≥3:1 sur la surface).
+     Ne pas changer sans repasser le validateur. */
+  --viz-series: #0da271;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-muted: #898781;
+  --viz-good: #006300;
+  --viz-bad: #d03b3b;
+
   --radius: 12px;
   --radius-lg: 20px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
@@ -24,26 +34,36 @@
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115;
-    --surface: #181b21;
-    --surface-2: #21252d;
-    --border: #2b3038;
-    --text: #e7e9ec;
-    --text-muted: #9aa1ac;
-    --accent: #17c98a;
-    --accent-hover: #0da271;
-    --accent-soft: #123529;
-    --danger: #f87171;
-    --danger-soft: #3a1c1c;
-    --warning: #fbbf24;
-    --warning-soft: #3a2e12;
-    --info: #60a5fa;
-    --info-soft: #16263f;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
-  }
+/* Le thème est résolu avant le premier rendu par le script inline de
+   layout.tsx (préférence stockée, sinon réglage de l'OS) : un seul bloc
+   de variables sombres, donc aucun risque de divergence entre deux copies. */
+:root[data-theme='dark'] {
+  --bg: #0f1115;
+  --surface: #181b21;
+  --surface-2: #21252d;
+  --border: #2b3038;
+  --text: #e7e9ec;
+  --text-muted: #9aa1ac;
+  --accent: #17c98a;
+  --accent-hover: #0da271;
+  --accent-soft: #123529;
+  --danger: #f87171;
+  --danger-soft: #3a1c1c;
+  --warning: #fbbf24;
+  --warning-soft: #3a2e12;
+  --info: #60a5fa;
+  --info-soft: #16263f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  /* Pas un simple éclaircissement du pas clair : #0fae7b est le pas
+     choisi pour la bande sombre (validé sur la surface #181b21). */
+  --viz-series: #0fae7b;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-muted: #898781;
+  --viz-good: #0ca30c;
+  --viz-bad: #d03b3b;
 }
 
 * {
@@ -266,7 +286,9 @@ a {
   font-weight: 800;
   letter-spacing: -0.3px;
   margin-top: 6px;
-  font-variant-numeric: tabular-nums;
+  /* Chiffres proportionnels : tabular-nums fait « flotter » un grand
+     nombre isolé. Il est réservé aux colonnes qui doivent s'aligner
+     (lignes de tableau, graduations d'axe). */
 }
 
 .kpi-sub {
@@ -274,6 +296,315 @@ a {
   font-size: 12px;
   margin-top: 4px;
 }
+
+/* ------------------------------------------------------- shell : topbar */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.icon-btn {
+  height: 36px;
+  min-width: 36px;
+  padding: 0 9px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Déclencheur de la recherche globale (⌘K) */
+.search-trigger {
+  flex: 1;
+  max-width: 420px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.12s;
+}
+.search-trigger:hover {
+  border-color: var(--accent);
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.dot-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  height: 7px;
+  width: 7px;
+  border-radius: 999px;
+  background: var(--danger);
+  border: 2px solid var(--surface);
+}
+
+/* Barre latérale repliable */
+.shell.collapsed {
+  grid-template-columns: 68px 1fr;
+}
+.shell.collapsed .nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+.shell.collapsed .nav-label,
+.shell.collapsed .brand span:not(.brand-mark),
+.shell.collapsed .sidebar-footer .user-meta {
+  display: none;
+}
+
+/* --------------------------------------------------------- bento layout */
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.bento > .span-3 { grid-column: span 3; }
+.bento > .span-2 { grid-column: span 2; }
+.bento > .span-4 { grid-column: span 4; }
+
+@media (max-width: 1100px) {
+  .bento { grid-template-columns: repeat(2, 1fr); }
+  .bento > .span-3,
+  .bento > .span-4 { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .bento { grid-template-columns: 1fr; }
+  .bento > .span-2,
+  .bento > .span-3,
+  .bento > .span-4 { grid-column: span 1; }
+}
+
+/* Le nombre-héros : un seul par vue */
+.hero-figure {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -1.4px;
+  line-height: 1.05;
+  /* Chiffres proportionnels — cf. .kpi-value */
+}
+
+/* ------------------------------------------------------------ data-viz */
+
+.viz-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  /* La hauteur suit le contenu : la bande d'axe X ne doit jamais
+     déborder d'une hauteur fixe (sinon mini-scroll dans la carte). */
+}
+
+/* Rafraîchissement : on garde le rendu précédent en retrait plutôt que
+   de refaire clignoter un squelette (pas de saut de mise en page). */
+.is-refetching {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.viz-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.delta-up { color: var(--viz-good); }
+.delta-down { color: var(--viz-bad); }
+.delta-flat { color: var(--text-muted); }
+
+/* ------------------------------------------------------- action queue */
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.queue-item:last-child { border-bottom: none; }
+
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.feed-item:last-child { border-bottom: none; }
+
+.feed-dot {
+  height: 28px;
+  width: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------- palette de commandes ⌘K */
+
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.5);
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.cmdk-panel {
+  width: 100%;
+  max-width: 560px;
+  height: fit-content;
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.cmdk-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 16px 18px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+}
+
+.cmdk-list {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  text-align: left;
+}
+.cmdk-item[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.cmdk-section {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------- drawer */
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.44);
+  z-index: 1100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer-panel {
+  width: 100%;
+  max-width: 420px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 24px;
+  animation: drawer-in 0.18s ease-out;
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.sortable {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sortable:hover { color: var(--text); }
 
 /* ---------------------------------------------------------------- tables */
 

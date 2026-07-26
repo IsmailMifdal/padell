@@ -120,8 +120,42 @@ export interface Kpis {
   openReports: number;
 }
 
+export interface Metric {
+  value: number;
+  previous: number;
+  /** null = pas de base de comparaison (période précédente à zéro). */
+  deltaPct: number | null;
+}
+
+export interface Overview {
+  days: number;
+  kpis: {
+    revenueMad: Metric;
+    commissionMad: Metric;
+    bookings: Metric;
+    signups: Metric;
+    matches: Metric;
+  };
+  totals: { users: number; clubs: Record<string, number> };
+  series: { date: string; revenueMad: number; bookings: number; signups: number }[];
+  topClubs: { id: string; name: string; city: string; revenueMad: number; bookings: number }[];
+  activity: { type: 'USER' | 'CLUB'; at: string; label: string; sub: string }[];
+  queue: {
+    pendingClubs: {
+      id: string;
+      name: string;
+      city: string;
+      createdAt: string;
+      owner: { email: string | null; phone: string | null } | null;
+    }[];
+    openReports: { id: string; reason: string; targetType: string; createdAt: string }[];
+  };
+}
+
 export const api = {
   kpis: () => request<Kpis>('GET', '/admin/kpis'),
+
+  overview: (days = 30) => request<Overview>('GET', `/admin/overview?days=${days}`),
 
   listClubs: (status?: string) =>
     request<any[]>('GET', `/admin/clubs${status ? `?status=${status}` : ''}`),
@@ -129,10 +163,10 @@ export const api = {
   rejectClub: (id: string) => request('POST', `/admin/clubs/${id}/reject`),
   suspendClub: (id: string) => request('POST', `/admin/clubs/${id}/suspend`),
 
-  listUsers: (q?: string) =>
-    request<{ items: any[]; total: number }>(
+  listUsers: (q?: string, page = 1, limit = 25) =>
+    request<{ items: any[]; total: number; page: number; limit: number }>(
       'GET',
-      `/admin/users${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+      `/admin/users?page=${page}&limit=${limit}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
     ),
   suspendUser: (id: string) => request('POST', `/admin/users/${id}/suspend`),
   banUser: (id: string) => request('POST', `/admin/users/${id}/ban`),

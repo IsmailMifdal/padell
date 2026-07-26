@@ -5,6 +5,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
 } from 'react';
 import { CheckCircle, Icon, Tray, WarningCircle, X } from '@phosphor-icons/react';
@@ -89,6 +90,81 @@ export function Modal({
       </div>
     </div>
   );
+}
+
+// ----------------------------------------------------------------- drawer
+
+/** Panneau latéral de détail (fiche utilisateur / club). */
+export function Drawer({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.2px' }}>{title}</div>
+          <button className="btn btn-sm" style={{ border: 'none', padding: 4 }} onClick={onClose} aria-label="Fermer">
+            <X size={16} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Ligne libellé / valeur d'une fiche de détail. */
+export function Field({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 3, fontSize: 14 }}>{value ?? '—'}</div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- export CSV
+
+/**
+ * Télécharge un tableau au format CSV.
+ * Le BOM UTF-8 est indispensable pour qu'Excel n'abîme pas les accents.
+ */
+export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    // Guillemets doublés + encadrement dès qu'un séparateur est présent
+    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [
+    headers.join(';'),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(';')),
+  ].join('\r\n');
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function Loading({ label = 'Chargement…' }: { label?: string }) {

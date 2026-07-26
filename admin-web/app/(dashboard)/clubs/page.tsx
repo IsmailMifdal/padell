@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
-import { Racquet } from '@phosphor-icons/react';
+import { Racquet, DownloadSimple } from '@phosphor-icons/react';
 import {
   Empty,
   ErrorState,
   PageHeader,
   StatusBadge,
   TableSkeleton,
+  downloadCsv,
   useToast,
 } from '@/components/ui';
 
@@ -62,6 +63,32 @@ export default function ClubsPage() {
       <PageHeader
         title="Clubs"
         subtitle="Validation et gestion des clubs partenaires"
+        actions={
+          <button
+            className="btn btn-sm"
+            disabled={clubs.length === 0}
+            onClick={() => {
+              downloadCsv(
+                `clubs-${filter || 'tous'}.csv`,
+                clubs.map((c) => ({
+                  Nom: c.name,
+                  Ville: c.city,
+                  Adresse: c.address ?? '',
+                  Proprietaire: c.owner?.profile
+                    ? `${c.owner.profile.firstName} ${c.owner.profile.lastName}`
+                    : '',
+                  Contact: c.owner?.email ?? c.owner?.phone ?? '',
+                  Terrains: c._count?.courts ?? 0,
+                  Statut: c.status,
+                })),
+              );
+              toast(`${clubs.length} ligne(s) exportée(s)`);
+            }}
+          >
+            <DownloadSimple size={14} />
+            Exporter CSV
+          </button>
+        }
       />
 
       <div className="toolbar">

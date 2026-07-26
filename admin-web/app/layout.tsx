@@ -19,13 +19,20 @@ export const metadata: Metadata = {
   description: "Dashboard d'administration — Padel App",
 };
 
+// Résout le thème avant le premier rendu : sans ça, une page sombre
+// s'afficherait d'abord en clair (flash) le temps que React démarre.
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('padel_admin_theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ToastProvider>{children}</ToastProvider>
       </body>

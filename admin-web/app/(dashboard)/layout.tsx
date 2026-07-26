@@ -12,6 +12,7 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { AdminUser, clearSession, getToken, getUser, isAdmin } from '@/lib/api';
+import { CommandPalette, Topbar, useCommandPalette } from '@/components/shell';
 
 const NAV = [
   { href: '/', label: 'Tableau de bord', Icon: ChartBar },
@@ -20,6 +21,8 @@ const NAV = [
   { href: '/reports', label: 'Signalements', Icon: Flag },
   { href: '/audit', label: "Journal d'audit", Icon: Scroll },
 ];
+
+const COLLAPSE_KEY = 'padel_admin_sidebar';
 
 export default function DashboardLayout({
   children,
@@ -30,6 +33,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [ready, setReady] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const { open, setOpen } = useCommandPalette();
 
   useEffect(() => {
     if (!getToken()) {
@@ -42,8 +47,25 @@ export default function DashboardLayout({
       return;
     }
     setUser(u);
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
+    } catch {
+      // stockage indisponible : on garde le menu déplié
+    }
     setReady(true);
   }, [router]);
+
+  function toggleSidebar() {
+    setCollapsed((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
+      } catch {
+        // préférence non mémorisée, sans conséquence sur l'affichage
+      }
+      return next;
+    });
+  }
 
   function logout() {
     clearSession();
@@ -53,11 +75,11 @@ export default function DashboardLayout({
   if (!ready) return null;
 
   return (
-    <div className="shell">
+    <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">🎾</span>
-          Padel Admin
+          <span>Padel Admin</span>
         </div>
         {NAV.map((item) => {
           const active =
@@ -69,16 +91,17 @@ export default function DashboardLayout({
               key={item.href}
               href={item.href}
               className={`nav-link ${active ? 'active' : ''}`}
+              title={collapsed ? item.label : undefined}
             >
               <item.Icon size={18} weight={active ? 'fill' : 'regular'} />
-              {item.label}
+              <span className="nav-label">{item.label}</span>
             </Link>
           );
         })}
         <div className="sidebar-footer">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px' }}>
             <div className="avatar">{user?.firstName?.[0]?.toUpperCase() ?? '?'}</div>
-            <div style={{ minWidth: 0 }}>
+            <div className="user-meta" style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user ? `${user.firstName} ${user.lastName}` : ''}
               </div>
@@ -91,13 +114,24 @@ export default function DashboardLayout({
             className="btn btn-sm"
             style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
             onClick={logout}
+            title="Déconnexion"
           >
             <SignOut size={14} />
-            Déconnexion
+            <span className="nav-label">Déconnexion</span>
           </button>
         </div>
       </aside>
-      <main className="main">{children}</main>
+
+      <div style={{ minWidth: 0 }}>
+        <Topbar
+          user={user}
+          onToggleSidebar={toggleSidebar}
+          onOpenSearch={() => setOpen(true)}
+        />
+        <main className="main">{children}</main>
+      </div>
+
+      <CommandPalette open={open} onClose={() => setOpen(false)} />
     </div>
   );
 }
