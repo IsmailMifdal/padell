@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/api_client.dart';
+import '../../core/deep_links.dart';
 import '../../core/haptics.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
@@ -84,10 +85,13 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   }
 
   /// Partage du match : message + lien direct vers sa page.
+  ///
+  /// Sur le web on partage l'URL courante (déjà navigable) ; ailleurs, le lien
+  /// public, qui est désormais capté par l'app grâce aux liens profonds.
   Future<void> _share(PadelMatch m) async {
     final when = DateFormat('EEEE d MMMM à HH:mm', 'fr').format(m.startsAt);
     final url = Uri.base.origin.isEmpty
-        ? 'https://padel.ma/matches/${m.id}'
+        ? DeepLinks.matchUrl(m.id)
         : '${Uri.base.origin}/#/matches/${m.id}';
     await Share.share(
       '🎾 Rejoins-moi au padel !\n'

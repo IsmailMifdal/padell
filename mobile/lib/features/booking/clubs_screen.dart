@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -258,7 +259,7 @@ class _Header extends ConsumerWidget {
                       image: me?.avatarUrl == null
                           ? null
                           : DecorationImage(
-                              image: NetworkImage(me!.avatarUrl!),
+                              image: CachedNetworkImageProvider(me!.avatarUrl!),
                               fit: BoxFit.cover,
                             ),
                     ),

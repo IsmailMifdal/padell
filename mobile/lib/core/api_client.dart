@@ -1,3 +1,5 @@
+import 'dart:io' show SocketException;
+
 import 'package:dio/dio.dart';
 
 import 'config.dart';
@@ -104,7 +106,28 @@ class ApiClient {
   }
 }
 
+/// Vrai si l'erreur vient du réseau (et non d'un refus du serveur).
+/// Sert à proposer « Réessayer » plutôt qu'un message définitif.
+bool isNetworkError(Object error) {
+  if (error is SocketException) return true;
+  if (error is! DioException) return false;
+  switch (error.type) {
+    case DioExceptionType.connectionError:
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.receiveTimeout:
+    case DioExceptionType.sendTimeout:
+      return true;
+    case DioExceptionType.unknown:
+      return error.error is SocketException;
+    default:
+      return false;
+  }
+}
+
 /// Extrait un message d'erreur lisible d'une [DioException].
+///
+/// Le message du backend prime toujours (il est déjà en français et
+/// contextuel) ; on ne retombe sur un texte générique qu'à défaut.
 String apiErrorMessage(Object error) {
   // En debug, trace l'erreur réelle (ex : erreur de parse d'un modèle)
   assert(() {
@@ -112,16 +135,33 @@ String apiErrorMessage(Object error) {
     print('apiErrorMessage: $error');
     return true;
   }());
+
   if (error is DioException) {
     final data = error.response?.data;
     if (data is Map && data['message'] != null) {
       final msg = data['message'];
       return msg is List ? msg.join(', ') : msg.toString();
     }
-    if (error.type == DioExceptionType.connectionError ||
-        error.type == DioExceptionType.connectionTimeout) {
-      return 'Impossible de joindre le serveur';
+
+    if (isNetworkError(error)) {
+      return error.type == DioExceptionType.receiveTimeout ||
+              error.type == DioExceptionType.sendTimeout
+          ? 'Le serveur met trop de temps à répondre. Réessayez.'
+          : 'Pas de connexion. Vérifiez votre réseau et réessayez.';
     }
+
+    // Codes sans message métier : on explique quand même ce qui se passe
+    final code = error.response?.statusCode;
+    if (code != null) {
+      if (code == 401 || code == 403) return 'Accès refusé. Reconnectez-vous.';
+      if (code == 404) return 'Élément introuvable.';
+      if (code == 409) return 'Ce créneau vient d’être pris. Choisissez-en un autre.';
+      if (code >= 500) return 'Le serveur rencontre un problème. Réessayez dans un instant.';
+    }
+  }
+
+  if (isNetworkError(error)) {
+    return 'Pas de connexion. Vérifiez votre réseau et réessayez.';
   }
   return 'Une erreur est survenue';
 }

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/push_service.dart';
 import '../../shared/models.dart';
 import 'auth_repository.dart';
 
@@ -58,6 +61,9 @@ class AuthController extends Notifier<AuthState> {
     final mode = ref.read(pendingAuthModeProvider);
     await ref.read(tokenStorageProvider).saveMode(mode.name);
     state = AuthState(AuthStage.authenticated, user: user, mode: mode);
+    // L'appareil ne peut être rattaché au compte qu'une fois connecté.
+    // Volontairement sans await : ne pas retarder l'entrée dans l'app.
+    unawaited(ref.read(pushServiceProvider).registerCurrentDevice());
   }
 
   Future<void> register({

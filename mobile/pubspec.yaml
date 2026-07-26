@@ -42,6 +42,11 @@ dependencies:
   # QR code visuel (réservations) + scan caméra (check-in club)
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.2
+  connectivity_plus: ^7.3.1
+  cached_network_image: ^3.4.1
+  flutter_local_notifications: ^22.2.0
+  timezone: ^0.11.1
+  app_links: ^7.2.1
 
 dev_dependencies:
   flutter_test:

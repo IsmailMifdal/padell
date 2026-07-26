@@ -19,6 +19,15 @@ final clubsProvider = FutureProvider.autoDispose<List<Club>>((ref) async {
       .searchClubs(lat: center.lat, lng: center.lng);
 });
 
+/// Fiche d'un club par son identifiant.
+///
+/// Nécessaire pour les liens profonds (`padel://club/<id>`) : on arrive alors
+/// sans objet `Club` en mémoire, contrairement à une navigation depuis la liste.
+final clubByIdProvider =
+    FutureProvider.autoDispose.family<Club, String>((ref, clubId) {
+  return ref.watch(bookingRepositoryProvider).getClub(clubId);
+});
+
 /// Clés de la recherche de disponibilités : (idClub, jour à minuit).
 typedef AvailabilityArgs = ({String clubId, DateTime day});
 

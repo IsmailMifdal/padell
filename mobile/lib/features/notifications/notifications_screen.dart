@@ -70,6 +70,18 @@ class NotificationsRepository {
   Future<void> markAllRead() async {
     await _dio.post<void>('/notifications/read');
   }
+
+  /// Déclare l'appareil auprès du backend pour recevoir les push.
+  ///
+  /// Point de branchement unique du circuit push : dès qu'un fournisseur de
+  /// jeton est disponible (FCM), il suffit de lui passer le jeton ici — tout
+  /// le reste (envoi, nettoyage des jetons périmés) existe déjà côté serveur.
+  Future<void> registerDevice(String token, String platform) async {
+    await _dio.put<void>(
+      '/notifications/device',
+      data: {'token': token, 'platform': platform},
+    );
+  }
 }
 
 const _typeIcons = <String, IconData>{

@@ -29,6 +29,27 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Liens profonds : padel://match/<id> — utilisé par les
+                 notifications push pour ouvrir le bon écran. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="padel"/>
+            </intent-filter>
+
+            <!-- Liens web partageables (WhatsApp, SMS).
+                 android:autoVerify demande la vérification App Links : elle
+                 n'aboutit qu'une fois le fichier assetlinks.json publié sur
+                 le domaine. Sans lui, le lien ouvre le navigateur — jamais
+                 une erreur. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="padel.ma"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/config.dart';
+import 'core/connectivity.dart';
 import 'core/i18n.dart';
 import 'core/theme.dart';
 import 'router.dart';
@@ -43,6 +44,14 @@ class PadelApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       routerConfig: router,
+      // Bandeau hors-ligne global : inséré au-dessus de chaque écran plutôt
+      // que dans chacun d'eux, pour ne rien oublier.
+      builder: (context, child) => Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: child ?? const SizedBox.shrink()),
+        ],
+      ),
       // i18n : fr par défaut, ar (RTL automatique), en
       locale: locale,
       supportedLocales: supportedLocales,

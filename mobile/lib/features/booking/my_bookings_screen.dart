@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/api_client.dart';
+import '../../core/notifications_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
@@ -188,6 +189,11 @@ class _BookingCard extends ConsumerWidget {
     if (confirmed != true) return;
     try {
       await ref.read(bookingRepositoryProvider).cancel(booking.id);
+      // Sans ça, l'utilisateur recevrait un rappel pour une réservation
+      // qu'il vient d'annuler.
+      await NotificationsService.cancel(
+        NotificationsService.reminderId(booking.id),
+      );
       ref.invalidate(myBookingsProvider);
     } catch (e) {
       if (context.mounted) {

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -137,7 +138,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               AppColors.primary.withValues(alpha: 0.12),
                           backgroundImage: _avatarUrl == null
                               ? null
-                              : NetworkImage(_avatarUrl!),
+                              : CachedNetworkImageProvider(_avatarUrl!),
                           child: _uploading
                               ? const CircularProgressIndicator(strokeWidth: 2.5)
                               : _avatarUrl == null

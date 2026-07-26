@@ -18,4 +18,12 @@ class AppConfig {
   /// DSN Sentry — active le crash reporting.
   /// `--dart-define=SENTRY_DSN=https://...`
   static const String sentryDsn = String.fromEnvironment('SENTRY_DSN');
+
+  /// Domaine public utilisé pour les liens partagés (match, club).
+  /// Doit pointer vers une page web qui redirige vers l'app ou le store.
+  /// `--dart-define=PUBLIC_WEB_URL=https://padel.ma`
+  static const String publicWebUrl = String.fromEnvironment(
+    'PUBLIC_WEB_URL',
+    defaultValue: 'https://padel.ma',
+  );
 }

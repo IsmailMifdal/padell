@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/haptics.dart';
+import '../../core/notifications_service.dart';
 import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/models.dart';
@@ -65,6 +66,20 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             createSession: () => api.bookingSession(booking.id),
           );
         }
+      }
+
+      // Rappel local 2 h avant : c'est le moment où l'autorisation a du sens
+      // pour l'utilisateur (il vient de réserver), pas au premier lancement.
+      if (confirmed) {
+        await NotificationsService.requestPermission();
+        await NotificationsService.scheduleReminder(
+          id: NotificationsService.reminderId(booking.id),
+          title: 'Votre créneau approche 🎾',
+          body: '${widget.club.name} · ${slot.courtName} à '
+              '${DateFormat('HH:mm').format(slot.startsAt)}',
+          startsAt: slot.startsAt,
+          deepLink: 'padel://club/${widget.club.id}',
+        );
       }
 
       ref.invalidate(myBookingsProvider);

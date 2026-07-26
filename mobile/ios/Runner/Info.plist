@@ -68,5 +68,19 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- Liens profonds : padel://match/<id> (notifications, partage) -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>ma.padel.app</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>padel</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>
