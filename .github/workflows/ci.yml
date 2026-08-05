@@ -59,3 +59,36 @@ jobs:
       - run: npm ci
       - name: Build
         run: npm run build
+
+  # Build Android : angle mort découvert le 26/07/2026 — un commit dont la
+  # compilation APK était cassée (flutter_local_notifications exigeait le core
+  # library desugaring) est passé au vert, parce que `flutter analyze` et
+  # `flutter test` ne touchent jamais à Gradle. Ce job ferme ce trou.
+  #
+  # Il publie aussi l'APK en artefact : plus besoin de le compiler en local,
+  # ce que la machine de dev peine à faire (crashs JVM par manque de mémoire).
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build APK (release)
+        run: flutter build apk --release
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: padel-apk-${{ github.sha }}
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
