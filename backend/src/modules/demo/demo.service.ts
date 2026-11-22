@@ -14,7 +14,7 @@ import {
   User,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 /** Domaine des comptes de démonstration (joueurs, propriétaires, invités). */
@@ -27,9 +27,22 @@ const SLOT_MIN = 90;
 const SLOTS = Array.from({ length: 10 }, (_, i) => 480 + SLOT_MIN * i); // 08:00 → 21:30
 const SCORES = ['6-4, 6-3', '7-5, 6-4', '4-6, 6-3, 6-2', '6-2, 6-1', '7-6, 6-4'];
 
+// Aléatoire de crypto (pas Math.random) : aucun enjeu de sécurité ici, mais un seul générateur partout.
+type DemoCourt = { id: string; clubId: string; type: CourtType };
+type DemoPlayer = { id: string; level: number };
+type Slot = { courtId: string; clubId: string; start: Date; end: Date; price: number };
+
 const pick = <T>(items: readonly T[]): T => items[randomInt(items.length)];
-const sample = <T>(items: readonly T[], n: number): T[] =>
-  [...items].sort(() => Math.random() - 0.5).slice(0, n);
+const chance = (probability: number): boolean => randomInt(1_000_000) < probability * 1_000_000;
+/** n éléments distincts tirés au hasard (Fisher-Yates partiel). */
+const sample = <T>(items: readonly T[], n: number): T[] => {
+  const copy = [...items];
+  for (let i = 0; i < Math.min(n, copy.length); i++) {
+    const j = i + randomInt(copy.length - i);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+};
 
 /**
  * Mode démo (DEMO_MODE=true), pour une vitrine de portfolio :
@@ -95,6 +108,17 @@ export class DemoService {
       this.logger.warn('Données de plateforme de démo absentes : remplissage ignoré');
       return;
     }
+    const clubIds = [...new Set(courts.map((c) => c.clubId))];
+    await this.completeProfile(userId, clubIds);
+    const mateIds = mates.map((m) => m.id);
+    await this.seedPast(userId, courts, mateIds);
+    await this.seedUpcoming(userId, courts, mateIds);
+    await this.joinOpenMatches(userId, clubIds);
+    await this.seedNotifications(userId);
+    await this.refreshMatchesPlayed([userId]);
+  }
+
+  private async completeProfile(userId: string, clubIds: string[]): Promise<void> {
     const profile = await this.prisma.playerProfile.findUnique({ where: { userId } });
     if (profile) {
       await this.prisma.playerProfile.update({
@@ -107,77 +131,73 @@ export class DemoService {
         },
       });
     }
-    const clubIds = [...new Set(courts.map((c) => c.clubId))];
     await this.prisma.favoriteClub.createMany({
       data: clubIds.slice(0, 3).map((clubId) => ({ userId, clubId })),
       skipDuplicates: true,
     });
+  }
 
-    // Passé : 6 réservations jouées, dont 4 matchs notés
+  /** 6 réservations jouées, dont 4 matchs avec score et notes reçues, et 2 avis de club. */
+  private async seedPast(userId: string, courts: DemoCourt[], mates: string[]): Promise<void> {
     for (const [i, dayOffset] of [-27, -21, -16, -11, -6, -3].entries()) {
       const slot = await this.freeSlot(courts, dayOffset);
       if (!slot) continue;
       const booking = await this.createBooking(userId, slot, BookingStatus.COMPLETED);
-      if (i < 4) {
-        const team = sample(mates, 3).map((m) => m.id);
-        const winners = Math.random() < 0.6 ? [userId, team[0]] : team.slice(1);
-        const match = await this.createMatch(userId, booking, slot, MatchStatus.PLAYED, team, {
-          winnerIds: winners,
-          score: pick(SCORES),
-        });
-        await this.prisma.rating.createMany({
-          data: team.map((raterId) => ({
-            matchId: match.id,
-            raterId,
-            ratedId: userId,
-            punctuality: randomInt(4, 6),
-            fairplay: randomInt(4, 6),
-            levelAccuracy: randomInt(3, 6),
-          })),
-        });
-      }
+      if (i < 4) await this.seedPlayedMatch(userId, booking, slot, mates);
       if (i === 1 || i === 4) {
         await this.prisma.clubReview.create({
-          data: {
-            clubId: slot.clubId,
-            bookingId: booking.id,
-            userId,
-            rating: 5,
-            comment: 'Très bon club, terrains au top.',
-          },
+          data: { clubId: slot.clubId, bookingId: booking.id, userId, rating: 5, comment: 'Très bon club, terrains au top.' },
         });
       }
     }
+  }
 
-    // À venir : une réservation simple, un match confirmé, un match ouvert, un paiement sur place
-    const upcoming: Array<[number, 'single' | 'confirmed' | 'open' | 'onsite']> = [
+  private async seedPlayedMatch(userId: string, booking: { id: string }, slot: Slot, mates: string[]): Promise<void> {
+    const team = sample(mates, 3);
+    const winners = chance(0.6) ? [userId, team[0]] : team.slice(1);
+    const match = await this.createMatch(userId, booking, slot, MatchStatus.PLAYED, team, {
+      winnerIds: winners,
+      score: pick(SCORES),
+    });
+    await this.prisma.rating.createMany({
+      data: team.map((raterId) => ({
+        matchId: match.id,
+        raterId,
+        ratedId: userId,
+        punctuality: randomInt(4, 6),
+        fairplay: randomInt(4, 6),
+        levelAccuracy: randomInt(3, 6),
+      })),
+    });
+  }
+
+  /** Une réservation simple, un match confirmé, un match ouvert (avec demande), un paiement sur place. */
+  private async seedUpcoming(userId: string, courts: DemoCourt[], mates: string[]): Promise<void> {
+    const plan: Array<[number, 'single' | 'confirmed' | 'open' | 'onsite']> = [
       [1, 'single'],
       [2, 'confirmed'],
       [4, 'open'],
       [6, 'onsite'],
     ];
-    for (const [dayOffset, kind] of upcoming) {
+    for (const [dayOffset, kind] of plan) {
       const slot = await this.freeSlot(courts, dayOffset);
       if (!slot) continue;
-      const booking = await this.createBooking(
-        userId,
-        slot,
-        BookingStatus.CONFIRMED,
-        kind === 'onsite' ? PaymentMode.ON_SITE : PaymentMode.ONLINE,
-      );
+      const mode = kind === 'onsite' ? PaymentMode.ON_SITE : PaymentMode.ONLINE;
+      const booking = await this.createBooking(userId, slot, BookingStatus.CONFIRMED, mode);
       if (kind === 'confirmed') {
-        const team = sample(mates, 3).map((m) => m.id);
-        await this.createMatch(userId, booking, slot, MatchStatus.CONFIRMED, team);
+        await this.createMatch(userId, booking, slot, MatchStatus.CONFIRMED, sample(mates, 3));
       } else if (kind === 'open') {
-        const [partner, requester] = sample(mates, 2).map((m) => m.id);
+        const [partner, requester] = sample(mates, 2);
         const match = await this.createMatch(userId, booking, slot, MatchStatus.OPEN, [partner]);
         await this.prisma.matchPlayer.create({
           data: { matchId: match.id, playerId: requester, status: 'REQUESTED' },
         });
       }
     }
+  }
 
-    // Rejoindre deux matchs ouverts d'autres joueurs
+  /** Rejoint deux matchs ouverts d'autres joueurs (au moins 3 h avant le début). */
+  private async joinOpenMatches(userId: string, clubIds: string[]): Promise<void> {
     const openMatches = await this.prisma.match.findMany({
       where: {
         status: MatchStatus.OPEN,
@@ -189,28 +209,29 @@ export class DemoService {
       orderBy: { startsAt: 'asc' },
       take: 20,
     });
-    for (const match of openMatches.filter((m) => m.players.length <= 2).slice(0, 2)) {
-      await this.prisma.matchPlayer.create({
-        data: { matchId: match.id, playerId: userId, team: 2, status: 'ACCEPTED' },
-      });
-    }
+    const joinable = openMatches.filter((m) => m.players.length <= 2).slice(0, 2);
+    await this.prisma.matchPlayer.createMany({
+      data: joinable.map((m) => ({ matchId: m.id, playerId: userId, team: 2, status: 'ACCEPTED' as const })),
+    });
+  }
 
+  private async seedNotifications(userId: string): Promise<void> {
+    const items: Array<[string, string, string, boolean]> = [
+      ['BOOKING_REMINDER', 'Rappel de réservation', 'Ton terrain t’attend demain. Arrive 10 min avant.', false],
+      ['MATCH_JOIN_REQUEST', 'Nouvelle demande', 'Un joueur veut rejoindre ton match ouvert.', false],
+      ['MATCH_FULL', 'Match complet', 'Ton match de padel est complet : 4 joueurs confirmés.', true],
+      ['RATING_RECEIVED', 'Nouvelle note', 'Tes partenaires t’ont noté après ton dernier match.', true],
+    ];
     await this.prisma.notification.createMany({
-      data: [
-        ['BOOKING_REMINDER', 'Rappel de réservation', 'Ton terrain t’attend demain. Arrive 10 min avant.', false],
-        ['MATCH_JOIN_REQUEST', 'Nouvelle demande', 'Un joueur veut rejoindre ton match ouvert.', false],
-        ['MATCH_FULL', 'Match complet', 'Ton match de padel est complet : 4 joueurs confirmés.', true],
-        ['RATING_RECEIVED', 'Nouvelle note', 'Tes partenaires t’ont noté après ton dernier match.', true],
-      ].map(([type, title, body, read]) => ({
+      data: items.map(([type, title, body, read]) => ({
         userId,
-        type: type as string,
-        title: title as string,
-        body: body as string,
+        type,
+        title,
+        body,
         data: { demo: true },
         readAt: read ? new Date() : null,
       })),
     });
-    await this.refreshMatchesPlayed([userId]);
   }
 
   /** Chaque nuit : la démo reste « vivante » (créneaux pris, matchs à venir) et les invités expirent. */
@@ -249,7 +270,7 @@ export class DemoService {
         where: { id: match.id },
         data: {
           status: MatchStatus.PLAYED,
-          score: { winnerIds: Math.random() < 0.5 && team1.length ? team1 : ids.slice(2), score: pick(SCORES) },
+          score: { winnerIds: chance(0.5) && team1.length ? team1 : ids.slice(2), score: pick(SCORES) },
         },
       });
     }
@@ -263,38 +284,39 @@ export class DemoService {
     if (courts.length === 0 || players.length < 4) return;
     for (let dayOffset = 0; dayOffset <= REFRESH_DAYS_AHEAD; dayOffset++) {
       const day = this.moroccoDay(dayOffset);
-      const dayStart = this.toUtc(day, 0);
-      const dayEnd = this.toUtc(day, 24 * 60);
       for (const court of courts) {
-        const existing = await this.prisma.booking.count({
-          where: { courtId: court.id, startsAt: { gte: dayStart, lt: dayEnd } },
-        });
-        if (existing > 0) continue;
-        const weekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
-        for (const startMin of SLOTS) {
-          const peak = weekend || startMin >= 1020;
-          if (Math.random() > (peak ? 0.6 : 0.28)) continue;
-          const slot = this.slotFor(court, day, startMin);
-          if (slot.end <= new Date()) continue;
-          const booker = pick(players);
-          const booking = await this.createBooking(booker.id, slot, BookingStatus.CONFIRMED);
-          if (Math.random() < 0.35) {
-            const others = players.filter((p) => p.id !== booker.id && Math.abs(p.level - booker.level) <= 1);
-            const n = pick([0, 1, 2, 3, 3]);
-            const team = sample(others, n).map((p) => p.id);
-            await this.createMatch(
-              booker.id,
-              booking,
-              slot,
-              team.length === 3 ? MatchStatus.CONFIRMED : MatchStatus.OPEN,
-              team,
-              undefined,
-              booker.level,
-            );
-          }
-        }
+        await this.fillCourtDay(court, day, players);
       }
     }
+  }
+
+  /** Remplit un terrain pour un jour sans aucune réservation (plus de monde le soir et le week-end). */
+  private async fillCourtDay(court: DemoCourt, day: Date, players: DemoPlayer[]): Promise<void> {
+    const existing = await this.prisma.booking.count({
+      where: { courtId: court.id, startsAt: { gte: this.toUtc(day, 0), lt: this.toUtc(day, 24 * 60) } },
+    });
+    if (existing > 0) return;
+    const weekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
+    for (const startMin of SLOTS) {
+      const slot = this.slotFor(court, day, startMin);
+      const occupancy = weekend || startMin >= 1020 ? 0.6 : 0.28;
+      if (slot.end <= new Date() || !chance(occupancy)) continue;
+      const booker = pick(players);
+      const booking = await this.createBooking(booker.id, slot, BookingStatus.CONFIRMED);
+      if (chance(0.35)) await this.createOpenOrFullMatch(booker, booking, slot, players);
+    }
+  }
+
+  private async createOpenOrFullMatch(
+    booker: DemoPlayer,
+    booking: { id: string },
+    slot: Slot,
+    players: DemoPlayer[],
+  ): Promise<void> {
+    const others = players.filter((p) => p.id !== booker.id && Math.abs(p.level - booker.level) <= 1);
+    const team = sample(others, pick([0, 1, 2, 3, 3])).map((p) => p.id);
+    const status = team.length === 3 ? MatchStatus.CONFIRMED : MatchStatus.OPEN;
+    await this.createMatch(booker.id, booking, slot, status, team, undefined, booker.level);
   }
 
   /** Supprime les comptes invités plus vieux que GUEST_TTL_DAYS, avec toutes leurs données. */
@@ -329,7 +351,7 @@ export class DemoService {
 
   // ----------------------------------------------------------------- interne
 
-  private async demoCourts(city?: string) {
+  private async demoCourts(city?: string): Promise<DemoCourt[]> {
     const courts = await this.prisma.court.findMany({
       where: {
         active: true,
@@ -340,7 +362,7 @@ export class DemoService {
     return courts;
   }
 
-  private async demoPlayers() {
+  private async demoPlayers(): Promise<DemoPlayer[]> {
     const profiles = await this.prisma.playerProfile.findMany({
       where: { user: { email: { startsWith: 'joueur', endsWith: DEMO_DOMAIN } } },
       select: { userId: true, level: true },
@@ -358,7 +380,7 @@ export class DemoService {
     return new Date(day.getTime() + (minutes - MOROCCO_UTC_OFFSET_MIN) * 60_000);
   }
 
-  private slotFor(court: { id: string; clubId: string; type: CourtType }, day: Date, startMin: number) {
+  private slotFor(court: DemoCourt, day: Date, startMin: number): Slot {
     const weekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
     const price =
       (weekend || startMin >= 1020 ? 400 : 300) + (court.type === CourtType.PANORAMIC ? 50 : 0);
@@ -367,7 +389,7 @@ export class DemoService {
   }
 
   /** Créneau du soir sans réservation active (ni jouée) sur l'un des terrains donnés. */
-  private async freeSlot(courts: Array<{ id: string; clubId: string; type: CourtType }>, dayOffset: number) {
+  private async freeSlot(courts: DemoCourt[], dayOffset: number): Promise<Slot | null> {
     const day = this.moroccoDay(dayOffset);
     for (let attempt = 0; attempt < 60; attempt++) {
       const startMin = pick(SLOTS.filter((s) => s >= 1020));
@@ -388,9 +410,9 @@ export class DemoService {
 
   private createBooking(
     userId: string,
-    slot: ReturnType<DemoService['slotFor']>,
+    slot: Slot,
     status: BookingStatus,
-    mode: PaymentMode = Math.random() < 0.6 ? PaymentMode.ONLINE : PaymentMode.ON_SITE,
+    mode: PaymentMode = chance(0.6) ? PaymentMode.ONLINE : PaymentMode.ON_SITE,
   ) {
     const paid = status === BookingStatus.COMPLETED || mode === PaymentMode.ONLINE;
     return this.prisma.booking.create({
@@ -424,7 +446,7 @@ export class DemoService {
   private createMatch(
     creatorId: string,
     booking: { id: string },
-    slot: ReturnType<DemoService['slotFor']>,
+    slot: Slot,
     status: MatchStatus,
     others: string[],
     score?: Prisma.InputJsonValue,
@@ -454,7 +476,7 @@ export class DemoService {
   }
 
   private async refreshMatchesPlayed(userIds: string[]): Promise<void> {
-    for (const userId of [...new Set(userIds)]) {
+    for (const userId of new Set(userIds)) {
       const played = await this.prisma.matchPlayer.count({
         where: { playerId: userId, status: 'ACCEPTED', match: { status: MatchStatus.PLAYED } },
       });
