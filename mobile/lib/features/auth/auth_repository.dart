@@ -69,6 +69,12 @@ class AuthRepository {
     return _persist(res.data!);
   }
 
+  /// Mode démo : le backend crée un compte invité déjà rempli.
+  Future<User> demoLogin() async {
+    final res = await _dio.post<Map<String, dynamic>>('/auth/demo');
+    return _persist(res.data!);
+  }
+
   Future<User> verifyOtpLogin(String phone, String code) async {
     final res = await _dio.post<Map<String, dynamic>>('/auth/otp/verify', data: {
       'phone': phone,

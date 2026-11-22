@@ -53,6 +53,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// Mode démo : compte invité prérempli, sans inscription.
+  Future<void> _demoLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authControllerProvider.notifier).demoLogin();
+    } catch (e) {
+      if (mounted) setState(() => _error = apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -437,6 +452,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             icon: const Icon(Icons.apple, size: 22),
                             label: const Text('Continuer avec Apple'),
                             style: _socialStyle,
+                          ),
+                        ],
+                        if (AppConfig.demoMode) ...[
+                          const SizedBox(height: 20),
+                          FilledButton.tonalIcon(
+                            onPressed: _loading ? null : _demoLogin,
+                            icon: const Icon(Icons.play_circle_outline),
+                            label: const Text('Essayer la démo, sans compte'),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Compte invité déjà rempli (réservations, matchs, '
+                            'stats), supprimé au bout de 7 jours.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                         const SizedBox(height: 20),

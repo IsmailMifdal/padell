@@ -90,6 +90,11 @@ class AuthController extends Notifier<AuthState> {
     await _finish(user);
   }
 
+  Future<void> demoLogin() async {
+    final user = await _repo.demoLogin();
+    await _finish(user);
+  }
+
   Future<void> verifyOtpLogin(String phone, String code) async {
     final user = await _repo.verifyOtpLogin(phone, code);
     await _finish(user);
