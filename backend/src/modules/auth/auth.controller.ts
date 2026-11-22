@@ -21,6 +21,14 @@ export class AuthController {
     return this.auth.register(dto);
   }
 
+  /** Mode démo uniquement : crée un compte invité rempli (404 sinon). 5 / minute par IP. */
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('demo')
+  demo() {
+    return this.auth.demoLogin();
+  }
+
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() dto: LoginDto) {

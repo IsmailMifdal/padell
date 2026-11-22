@@ -15,6 +15,11 @@ class AppConfig {
   static const String googleWebClientId =
       String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 
+  /// Mode démo (portfolio) : bouton « Essayer la démo » sur la connexion.
+  /// Le backend doit aussi avoir `DEMO_MODE=true`.
+  /// `--dart-define=DEMO_MODE=true`
+  static const bool demoMode = bool.fromEnvironment('DEMO_MODE');
+
   /// DSN Sentry — active le crash reporting.
   /// `--dart-define=SENTRY_DSN=https://...`
   static const String sentryDsn = String.fromEnvironment('SENTRY_DSN');

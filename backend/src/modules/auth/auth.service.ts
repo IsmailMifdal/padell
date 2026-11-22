@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,7 @@ import { OtpPurpose, Role, User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { DemoService } from '../demo/demo.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -48,6 +50,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly otp: OtpService,
     private readonly socialTokens: SocialTokenService,
+    private readonly demo: DemoService,
   ) {}
 
   // ---------------------------------------------------------------- register
@@ -270,6 +273,14 @@ export class AuthService {
 
   // ----------------------------------------------------------------- refresh
 
+  /** Mode démo : compte invité jetable, déjà rempli (bouton « Essayer la démo »). */
+  async demoLogin(deviceInfo?: string): Promise<AuthResult> {
+    if (!this.demo.enabled) throw new NotFoundException();
+    const user = await this.demo.createGuest();
+    const profile = await this.prisma.playerProfile.findUnique({ where: { userId: user.id } });
+    return this.buildAuthResult(user, profile?.firstName ?? 'Visiteur', profile?.lastName ?? '', deviceInfo);
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokens> {
     const tokenHash = this.hashToken(refreshToken);
     const stored = await this.prisma.refreshToken.findUnique({
@@ -336,6 +347,8 @@ export class AuthService {
     lastName: string,
     deviceInfo?: string,
   ): Promise<AuthResult> {
+    // Mode démo : un compte joueur vide reçoit des réservations et des matchs
+    await this.demo.seedIfEmpty(user);
     const tokens = await this.issueTokens(user, deviceInfo);
     return {
       ...tokens,
