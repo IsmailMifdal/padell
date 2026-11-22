@@ -319,12 +319,15 @@ export class DemoService {
     await this.createMatch(booker.id, booking, slot, status, team, undefined, booker.level);
   }
 
-  /** Supprime les comptes invités plus vieux que GUEST_TTL_DAYS, avec toutes leurs données. */
+  /** Supprime les comptes invités plus vieux que GUEST_TTL_DAYS, avec toutes leurs données (sauf vrai paiement CMI). */
   async deleteExpiredGuests(): Promise<number> {
     const guests = await this.prisma.user.findMany({
       where: {
         email: { startsWith: GUEST_PREFIX, endsWith: DEMO_DOMAIN },
         createdAt: { lt: new Date(Date.now() - GUEST_TTL_DAYS * 86_400_000) },
+        // Un vrai paiement CMI (les paiements générés n'ont pas de commande CMI) n'est
+        // jamais effacé : le compte est conservé pour un éventuel remboursement manuel.
+        payments: { none: { cmiOrderId: { not: null } } },
       },
       select: { id: true },
     });

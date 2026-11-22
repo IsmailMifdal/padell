@@ -47,6 +47,13 @@ describe('DemoService', () => {
     await expect(service.seedIfEmpty({ id: 'u1', roles: [Role.PLAYER] })).resolves.toBeUndefined();
   });
 
+  it("ne supprime jamais un invité qui a un vrai paiement CMI", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const service = new DemoService({ user: { findMany } } as any, { get: () => 'true' } as any);
+    await service.deleteExpiredGuests();
+    expect(findMany.mock.calls[0][0].where.payments).toEqual({ none: { cmiOrderId: { not: null } } });
+  });
+
   it('POST /auth/demo est introuvable hors mode démo', async () => {
     const { AuthService } = await import('../auth/auth.service');
     const { service } = make(undefined);
