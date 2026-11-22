@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import '../../core/palette.dart';
 import '../../core/responsive.dart';
 import '../../shared/widgets.dart';
 import 'auth_controller.dart';
+import 'google_web/google_web_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -27,8 +30,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   String? _error;
 
+  /// Web : instance Google partagée avec le bouton officiel (renderButton).
+  GoogleSignIn? _webGoogle;
+  StreamSubscription<GoogleSignInAccount?>? _webGoogleSub;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb && _googleEnabled) {
+      _webGoogle = GoogleSignIn(clientId: AppConfig.googleWebClientId);
+      _webGoogleSub = _webGoogle!.onCurrentUserChanged.listen((account) {
+        if (account != null) _completeGoogleLogin(account);
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _webGoogleSub?.cancel();
     _identifier.dispose();
     _password.dispose();
     super.dispose();
@@ -54,7 +73,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   ButtonStyle get _socialStyle => OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
         side: const BorderSide(color: AppColors.line),
-        foregroundColor: AppColors.ink,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -69,18 +88,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS);
 
+  /// Mobile : flux natif `signIn()`. Sur le web, le bouton officiel s'en charge.
   Future<void> _googleLogin() async {
+    final google = GoogleSignIn(serverClientId: AppConfig.googleWebClientId);
+    final GoogleSignInAccount? account;
+    try {
+      account = await google.signIn();
+    } catch (e) {
+      setState(() => _error = apiErrorMessage(e));
+      return;
+    }
+    if (account == null) return; // annulé par l'utilisateur
+    await _completeGoogleLogin(account);
+  }
+
+  /// Échange l'id_token Google contre une session Padel.
+  Future<void> _completeGoogleLogin(GoogleSignInAccount account) async {
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final google = GoogleSignIn(
-        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
-        serverClientId: kIsWeb ? null : AppConfig.googleWebClientId,
-      );
-      final account = await google.signIn();
-      if (account == null) return; // annulé par l'utilisateur
       final idToken = (await account.authentication).idToken;
       if (idToken == null) {
         setState(() => _error = 'Google n’a pas fourni de jeton, réessayez');
@@ -366,17 +395,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // Auth sociale : boutons affichés si configurés
                         if (_googleEnabled) ...[
                           const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _loading ? null : _googleLogin,
-                            icon: const Text('G',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 18,
-                                  color: Color(0xFF4285F4),
-                                )),
-                            label: const Text('Continuer avec Google'),
-                            style: _socialStyle,
-                          ),
+                          if (kIsWeb)
+                            // Bouton officiel : seul moyen d'obtenir un id_token sur le web
+                            Center(child: googleWebButton())
+                          else
+                            OutlinedButton.icon(
+                              onPressed: _loading ? null : _googleLogin,
+                              icon: const Text('G',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    color: Color(0xFF4285F4),
+                                  )),
+                              label: const Text('Continuer avec Google'),
+                              style: _socialStyle,
+                            ),
                         ],
                         if (_appleEnabled) ...[
                           const SizedBox(height: 12),

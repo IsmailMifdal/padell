@@ -34,6 +34,8 @@ dependencies:
   share_plus: ^10.1.2
   # Auth sociale (backend /auth/social déjà prêt)
   google_sign_in: ^6.2.2
+  # Web : bouton officiel Google (renderButton), seul moyen d’obtenir un id_token
+  google_sign_in_web: ^0.12.4
   sign_in_with_apple: ^6.1.3
   # Upload avatar (URL présignée S3/R2)
   image_picker: ^1.1.2
