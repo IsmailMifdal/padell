@@ -90,25 +90,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// Mobile : flux natif `signIn()`. Sur le web, le bouton officiel s'en charge.
   Future<void> _googleLogin() async {
+    // Boutons bloqués pendant tout le flux natif (évite deux sélecteurs Google)
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     final google = GoogleSignIn(serverClientId: AppConfig.googleWebClientId);
     final GoogleSignInAccount? account;
     try {
       account = await google.signIn();
     } catch (e) {
-      setState(() => _error = apiErrorMessage(e));
+      if (mounted) {
+        setState(() {
+          _error = apiErrorMessage(e);
+          _loading = false;
+        });
+      }
       return;
     }
-    if (account == null) return; // annulé par l'utilisateur
-    await _completeGoogleLogin(account);
+    if (account == null) {
+      // annulé par l'utilisateur
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    await _completeGoogleLogin(account, alreadyLoading: true);
   }
 
   /// Échange l'id_token Google contre une session Padel.
-  Future<void> _completeGoogleLogin(GoogleSignInAccount account) async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _completeGoogleLogin(
+    GoogleSignInAccount account, {
+    bool alreadyLoading = false,
+  }) async {
+    if (!alreadyLoading) {
+      if (_loading) return;
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final idToken = (await account.authentication).idToken;
       if (idToken == null) {
