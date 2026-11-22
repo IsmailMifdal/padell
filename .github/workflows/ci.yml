@@ -37,6 +37,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Figé : Flutter 3.47+ déprécie package:flutter/material.dart (analyse en échec)
+          # et exige Gradle 9.3.1. À monter avec une migration dédiée.
+          flutter-version: 3.44.9
           cache: true
       - run: flutter pub get
       - name: Analyze
@@ -81,6 +84,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Figé : Flutter 3.47+ déprécie package:flutter/material.dart (analyse en échec)
+          # et exige Gradle 9.3.1. À monter avec une migration dédiée.
+          flutter-version: 3.44.9
           cache: true
       - run: flutter pub get
       - name: Build APK (release)
