@@ -2,6 +2,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# OpenSSL requis pour que Prisma génère le moteur openssl-3 (sinon crash au démarrage)
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 RUN npm ci
 
