@@ -23,6 +23,36 @@ export class ClubsService {
 
   // ------------------------------------------------------------- côté public
 
+  /** Clubs validés triés par distance ; `radiusM = null` : sans limite de rayon. */
+  private nearby(
+    lat: number,
+    lng: number,
+    radiusM: number | null,
+    limit: number,
+    offset: number,
+  ) {
+    const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}::float8, ${lat}::float8), 4326)::geography`;
+    const club = Prisma.sql`ST_SetSRID(ST_MakePoint(c.longitude::float8, c.latitude::float8), 4326)::geography`;
+    const withinRadius =
+      radiusM === null
+        ? Prisma.empty
+        : Prisma.sql`AND ST_DWithin(${club}, ${point}, ${radiusM})`;
+    return this.prisma.$queryRaw<
+      Array<Record<string, unknown> & { distance_m: number }>
+    >`
+      SELECT c.id, c.name, c.description, c.address, c.city, c.phone,
+             c.latitude, c.longitude, c.amenities, c.rating_avg,
+             c.payment_on_site_allowed,
+             ST_Distance(${club}, ${point}) AS distance_m
+      FROM clubs c
+      WHERE c.status = 'APPROVED'
+        ${withinRadius}
+      ORDER BY distance_m ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+  }
+
+
   async search(query: SearchClubsQuery) {
     const page = query.page ?? 1;
     const limit = query.limit ?? DEFAULT_PAGE_SIZE;
@@ -31,29 +61,17 @@ export class ClubsService {
     // Recherche par rayon : SQL brut PostGIS (index GIST fonctionnel)
     if (query.lat !== undefined && query.lng !== undefined) {
       const radiusM = (query.radiusKm ?? DEFAULT_RADIUS_KM) * 1000;
-      const rows = await this.prisma.$queryRaw<
-        Array<Record<string, unknown> & { distance_m: number }>
-      >`
-        SELECT c.id, c.name, c.description, c.address, c.city, c.phone,
-               c.latitude, c.longitude, c.amenities, c.rating_avg,
-               c.payment_on_site_allowed,
-               ST_Distance(
-                 ST_SetSRID(ST_MakePoint(c.longitude::float8, c.latitude::float8), 4326)::geography,
-                 ST_SetSRID(ST_MakePoint(${query.lng}::float8, ${query.lat}::float8), 4326)::geography
-               ) AS distance_m
-        FROM clubs c
-        WHERE c.status = 'APPROVED'
-          AND ST_DWithin(
-                ST_SetSRID(ST_MakePoint(c.longitude::float8, c.latitude::float8), 4326)::geography,
-                ST_SetSRID(ST_MakePoint(${query.lng}::float8, ${query.lat}::float8), 4326)::geography,
-                ${radiusM}
-              )
-        ORDER BY distance_m ASC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
+      let rows = await this.nearby(query.lat, query.lng, radiusM, limit, offset);
+      // Aucun club dans le rayon : on propose quand même les plus proches,
+      // triés par distance, plutôt qu'une liste vide (page 1 uniquement).
+      const outsideRadius = rows.length === 0 && page === 1;
+      if (outsideRadius) {
+        rows = await this.nearby(query.lat, query.lng, null, limit, offset);
+      }
       return {
         page,
         limit,
+        outsideRadius,
         items: rows.map((r) => ({ ...r, distance_m: Math.round(r.distance_m) })),
       };
     }
