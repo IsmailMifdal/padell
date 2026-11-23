@@ -2,6 +2,13 @@
 
 Application mobile de matching entre joueurs de padel et de réservation de terrains.
 
+> **🔗 Démo en ligne**
+> - Appli joueur : **[padel-app-olive.vercel.app](https://padel-app-olive.vercel.app)** → bouton « Essayer la démo, sans compte » (compte invité prérempli)
+> - Back-office admin : [padel-admin-nine.vercel.app](https://padel-admin-nine.vercel.app)
+> - API : `api-production-912c9355.up.railway.app/v1` (NestJS sur Railway)
+>
+> Réalisé par [Ismail Mifdal](https://ismail-mifdal.vercel.app).
+
 | Dossier | Contenu |
 |---|---|
 | [docs/](docs/README.md) | Cahier des charges, architecture, business model, APIs, roadmap |
